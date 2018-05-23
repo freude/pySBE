@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import trapz
+from scipy.integrate import simps
+from scipy.integrate import complex_ode
 from constants import *
 from int_matrix import exchange
 
@@ -15,18 +16,21 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
 
     l_k = np.size(k)  # length of k array
     l_f = np.size(fff)  # length of frequency array
-    l_t = 10000  # length of time array
+    l_t = 1000  # length of time array
 
     # -------------------- Material parameters -------------------
 
     eps = params.eps
+    Eg = params.Eg
+    me = params.me
+    mh = params.mh
     n_reff = params.n_reff
     vol = 1.0
 
     # ----------------------------time - ------------------------------
 
     t_min = 0.0  # min time
-    t_max = 2.5e-12  # max time
+    t_max = 7.5e-12  # max time
 
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
@@ -48,7 +52,7 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
 
     # --------------------------------------------------------
 
-    damp = 0.0015 * e  # damping
+    damp = 0.0005 * e  # damping
 
     # ----------------------Plasma parameters-----------------
 
@@ -77,53 +81,69 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
     # ----------------------Interaction matrix--------------------
 
     # call int_matrix(k, k1, l_k, eps, V, mh, me, Tempr, conc, ne[1], nh[1])
-    exce = exchange(k, ne, 1.0 - nh, V)
+    exce = exchange(k, ne, nh, V)
 
     # -----------Solving paramsuctor Bloch equations------------
 
     line = 1
 
-    for j2 in xrange(1, l_t):
+    def RS(pp, t):
+
         for j1 in xrange(l_k):
-            A[j1] = trapz(V[j1, :] * pp[j2 - 1, :] * k, dx=stk)
+            A[j1] = simps(V[j1, :] * np.real(pp) * k, dx=stk)
 
-            RS = -1j * (omega[j1] - Eg / h - exce[j1] / h) * pp[j2 - 1, j1] - \
-                 1j * (ne[j1] - nh[j1]) * (mu[j1] * E_field(t[j2 - 1]) + A[j1]) / h - \
-                 damp * pp[j2 - 1][j1] / h
+        RS = -1j * (omega - Eg / h - exce / h) * pp - \
+             1j * (ne - nh) * (mu * E_field(t) + A) / h - \
+             damp * pp / h
 
-            kk1 = RS
+        return RS
 
-            kk2 = -1j * (omega[j1] - Eg / h - exce[j1] / h) * (pp[j2 - 1][j1] + stt * kk1 / 2.0) - \
-                  1j * (ne[j1] - nh[j1]) * (mu[j1] * E_field(t[j2 - 1] + stt / 2) + A[j1]) / h - \
-                  damp * (pp[j2 - 1][j1] + stt * kk1 / 2.0) / h
+    pp = np.zeros(l_k, dtype=np.complex)
 
-            kk3 = -1j * (omega[j1] - Eg / h - exce[j1] / h) * (pp[j2 - 1][j1] + stt * kk2 / 2.0) - \
-                  1j * (ne[j1] - nh[j1]) * (mu[j1] * E_field(t[j2 - 1] + stt / 2) + A[j1]) / h - \
-                  damp * (pp[j2 - 1][j1] + stt * kk2 / 2.0) / h
+    solver = complex_ode(RS).set_integrator('dop853')
+    solver.set_initial_value(pp)
 
-            kk4 = -1j * (omega[j1] - Eg / h - exce[j1] / h) * (pp[j2 - 1][j1] + stt * kk3) - \
-                  1j * (ne[j1] - nh[j1]) * (mu[j1] * E_field(t[j2 - 1] + stt) + A[j1]) / h - \
-                  damp * (pp[j2 - 1][j1] + stt * kk3) / h
+    j2 = 0
 
-            pp[j2, j1] = pp[j2 - 1, j1] + (stt / 6) * (kk1 + 2.0 * kk2 + 2.0 * kk3 + kk4)
-            P[j2] += 2.0 * pi / vol * mu[j1] * k[j1] * pp[j2][j1] * stk
-            # print("{}: pp={:.2E} ne={:.2E} nh={:.2E} exce={:.2E} A={:.2E}".format(j2,
-            #                                                                       pp[j2, j1],
-            #                                                                       ne[j1], nh[j1],
-            #                                                                       exce[j1], A[j1]))
+    while solver.successful() and solver.t < t_max:
 
+        print j2, solver.t, t_max
+        j2 += 1
+        solver.integrate(t[j2])
+        pp = solver.y
+        P[j2] = 2.0 * pi / vol * stk * np.sum(mu * k * pp)
         E_ft[j2] = E_field(t[j2 - 1])
 
         if (j2 % 400) == 0.0:
             del line
-            line, = plt.plot(np.real(P[:j2 - 1]))
+            line, = plt.plot(P[:j2 - 1])
             plt.pause(0.05)
 
-    # ----------------- Fourier transformation ------------------
+    # for j2 in xrange(1, l_t):
     #
-    # ES = np.fft.fftshift(np.fft.fft(E_ft))
-    # PS = np.fft.fftshift(np.fft.fft(P))
-    # PSr = (fff + Eg / h) * np.imag(PS / ES) / (c * n_reff)
+    #     kk1 = RS(pp, t[j2-1])
+    #     kk2 = RS(pp + stt * kk1/ 2.0, t[j2 - 1] + stt / 2)
+    #     kk3 = RS(pp + stt * kk2 / 2.0, t[j2 - 1] + stt / 2)
+    #     kk4 = RS(pp + stt * kk3, t[j2 - 1] + stt)
+    #
+    #     pp += (stt / 6) * (kk1 + 2.0 * kk2 + 2.0 * kk3 + kk4)
+    #     P[j2] = 2.0 * pi / vol * stk * np.sum(mu * k * pp)
+    #     # print("{}: pp={:.2E} ne={:.2E} nh={:.2E} exce={:.2E} A={:.2E}".format(j2,
+    #     #                                                                       pp[j2, j1],
+    #     #                                                                       ne[j1], nh[j1],
+    #     #                                                                       exce[j1], A[j1]))
+    #
+    #     E_ft[j2] = E_field(t[j2 - 1])
+    #
+    #     if (j2 % 400) == 0.0:
+    #         del line
+    #         line, = plt.plot(P[:j2 - 1])
+    #         plt.pause(0.05)
+    #
+    #         print("{}: pp={:.2E} ne={:.2E} nh={:.2E} exce={:.2E} A={:.2E}".format(j2,
+    #                                                                               np.max(pp),
+    #                                                                               ne[0], nh[0],
+    #                                                                               exce[0], A[0]))
 
     ES = np.zeros(l_f, dtype=np.complex)
     PS = np.zeros(l_f, dtype=np.complex)

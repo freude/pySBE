@@ -6,16 +6,28 @@ from polarization import polarization
 
 
 class GaAs(object):
+    """
+    The class is a data structure for the material parameters of a semiconductor
+
+    Parameters are taken from
+    [I. Vurgaftman, J. R. Meyer, and L. R. Ram-Mohan, J. Appl. Phys., 89 (11), 2001]
+    """
 
     def __init__(self, dim=2):
 
         self.dim = dim
 
-        self.Eg = 1.7 * e        # nominal band gap
-        self.me = 0.02 * m0      # electrons effective mass
-        self.mh = 0.5 * m0       # holes effective mass
-        self.eps = 12.3          # permitivity
-        self.n_reff = 3.61       # refraction index
+        self.Eg = 1.519 * e       # nominal band gap
+        self.me = 0.067 * m0      # electrons effective mass
+        self.mh = 0.5 * m0        # holes effective mass
+        self.eps = 12.93          # permitivity
+        self.n_reff = 3.61        # refraction index
+
+        # ------------------- scaling constants -------------------
+
+        self.mr = self.me / (self.mh + self.me) * self.mh
+        self.a_0 = h / e * eps0 * self.eps * h / e / self.mr * 4 * np.pi
+        self.E_0 = (e / eps0 / self.eps) * (e / (2 * self.a_0)) / e_Ry
 
 
 class BandStructure(object):
@@ -63,7 +75,7 @@ class BandStructure(object):
         if j2 >= self.n_sb_e:
             raise ValueError("Band index exceeds maximal value")
 
-        return 1.0 * np.ones(k.shape)
+        return 1.0e-21 * np.ones(k.shape)
 
     def get_pairs_of_subbands(self, kk, j1, j2):
         return kk, self._val_band(j1, kk), self._cond_band(j2, kk), self._dipole(j1, j2, kk)
@@ -77,34 +89,43 @@ if __name__ == '__main__':
 
     semicond = GaAs()
 
-    l_k = 400   # length of k array
-    l_f = 9000  # length of frequency array
+    # -------------------- arrays defining ---------------------
 
-    wave_vector = np.linspace(0, 2.0e9, l_k)
-    freq_array = np.linspace(0.001, semicond.Eg / h, l_f) + semicond.Eg / h
+    l_k = 300   # length of k array
+    l_f = 500  # length of frequency array
+
+    wave_vector = np.linspace(0, 1.5e9, l_k)
+    freq_array = np.linspace(-0.05*semicond.Eg, 0.05*semicond.Eg, l_f)/h
 
     bs = BandStructure(material=semicond)
 
-    Tempr = 300
+    Tempr = 10
     conc = 8.85e11
 
     Ef_h, Ef_e = bs.get_Fermi_levels(wave_vector, 1, 1, Tempr, conc)
     V = int_matrix(wave_vector, semicond.eps)
+    # V = np.zeros((l_k, l_k))
 
-    stt = 0.05e-14
+    step = 0.01e-14
 
     def e_field(t):
-        return np.exp(-((t - 10 * stt) ** 2) / (2 * stt ** 2))
+
+        a = np.exp(-((t - 50 * step) ** 2) / (2 * step ** 2)) # * np.exp(1j*(0.0 * semicond.Eg / h) * t)
+
+        return np.nan_to_num(a)
+
 
     ps = np.zeros(l_f)
 
     for j1 in range(bs.n_sb_e):
         for j2 in range(bs.n_sb_e):
-            print("Conduction band {} and valence band {}".format(j1, j2))
+            print("The conduction subband index is {}, and the valence subband index is {}".format(j1, j2))
             subbands = bs.get_pairs_of_subbands(wave_vector, j1, j2)
             ps += polarization(freq_array, semicond, subbands, Ef_h, Ef_e, Tempr, conc, V, e_field)
 
     plt.plot(ps)
+
+    print('hi')
 
 
 

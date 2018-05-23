@@ -22,7 +22,7 @@ def int_matrix(k, eps):
             # angular integration
             q = np.sqrt(k[j1] ** 2 + k[j2] ** 2 - 2.0 * k[j1] * k[j2] * np.cos(phi[start:]))
             epss = 1.0
-            integrand = epss * e ** 2 / (8.0 * pow(pi, 2) * eps * eps0 * q)
+            integrand = epss * e ** 2 / (8.0 * (np.pi ** 2) * eps * eps0 * q)
             V[j1][j2] = simps(integrand, dx=np.abs(phi[2] - phi[1]))
 
     V[0, 0] = 0.0

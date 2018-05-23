@@ -9,3 +9,4 @@ kb = 1.38e-23		# electron mass
 pi = 3.14			# pi
 c = 3.0e8			# Light speed
 eps0 = 8.85e-12     # dielectric constant
+e_Ry = 13.61        # Rydberg energy in eV
