@@ -26,7 +26,7 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
     # ----------------------------time - ------------------------------
 
     t_min = 0.0  # min time
-    t_max = 2.5e-12  # max time
+    t_max = 3.0e-12  # max time
 
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
@@ -48,7 +48,7 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
 
     # --------------------------------------------------------
 
-    damp = 0.0015 * e  # damping
+    damp = 0.0012 * e  # damping
 
     # ----------------------Plasma parameters-----------------
 
@@ -133,6 +133,6 @@ def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
         for j1 in xrange(l_t):
             ES[j] += E_ft[j1] * np.exp(1j * fff[j] * t[j1]) * stt
             PS[j] += P[j1] * np.exp(1j * fff[j] * t[j1]) * stt / (4.0 * pi * eps0 * eps)
-        PSr[j] = (fff[j] + 0.8*Eg / h) * np.imag(PS[j] / ES[j]) / (c * n_reff)
+        PSr[j] = (fff[j] + Eg / h) * np.imag(PS[j] / ES[j]) / (c * n_reff)
 
     return PSr
