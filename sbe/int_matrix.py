@@ -11,8 +11,8 @@ def int_matrix(k, eps):
     l_phi = 3000
     phi = np.linspace(0, 2 * np.pi, l_phi, endpoint=False)              # angle array
 
-    for j1 in xrange(l_k):
-        for j2 in xrange(l_k):
+    for j1 in range(l_k):
+        for j2 in range(l_k):
 
             if j1 == j2:
                 start = 1

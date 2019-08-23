@@ -15,7 +15,7 @@ class GaAs(object):
         self.dim = dim
 
         self.Eg = 1.519 * e       # nominal band gap
-        self.me = 0.067 * m0      # electrons effective mass
+        self.me = 0.0665 * m0      # electrons effective mass
         self.mh = 0.377 * m0       # holes effective mass
         self.eps = 12.93          # permitivity
         self.n_reff = 3.61        # refraction index
@@ -79,4 +79,4 @@ class BandStructure(object):
 
     def get_Fermi_levels(self, wave_vector, num_val_subbans, num_cond_subbans, Tempr, conc):
 
-        return 0.5 * self.mat.Eg, 0.5 * self.mat.Eg
+        return 0.5 * self.mat.Eg, 0.5 * self.mat.Eg   # TODO
