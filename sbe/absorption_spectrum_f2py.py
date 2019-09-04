@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from constants import h
 from int_matrix import int_matrix
-from polarization import polarization
+from polarization_f2py import polarization
 from semiconductors import GaAs
 from semiconductors import BandStructure
 

@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import trapz
-import sbe.constants as const
-from sbe.int_matrix import exchange
+import constants as const
+from int_matrix import exchange
 
 
 def polarization(fff, params, bs, Ef_h, Ef_e, Tempr, conc, V, E_field):
