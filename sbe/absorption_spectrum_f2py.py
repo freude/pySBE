@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sbe.constants import h, e
 from sbe.int_matrix import int_matrix
-from sbe.polarization_f2py import polarization
+#from sbe.polarization_f2py import polarization
+from sbe.Pol_FFT_f2py import polarization
 from sbe.semiconductors import GaAs, Tc
 from sbe.semiconductors import BandStructure3D, get_Fermi_levels_2D
 
