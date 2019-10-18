@@ -17,7 +17,7 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
 
     l_k = np.size(k)    # length of k array
     l_f = np.size(fff)  # length of frequency array
-    l_t = 20000         # length of time array
+    l_t = 25000         # length of time array
     stk = k[4] - k[3]   # step in the k-space grid
 
     eps = params.eps
@@ -26,7 +26,7 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
     # -------------------------- time ----------------------------
 
     t_min = 0.0  # min time
-    t_max = 1.5e-11  # max time
+    t_max = 1.2e-11  # max time
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
 
@@ -94,23 +94,19 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
 
     # ---------------------- Visualization ----------------------
 
-    figs = []
-
     if debug:
 
-        if len(figs) > 0:
-            print('hi')
 
-        figs.append(plt.figure(figsize=(11, 7), constrained_layout=True))
+        fig = plt.figure(figsize=(11, 7), constrained_layout=True)
         from matplotlib.gridspec import GridSpec
 
-        gs = GridSpec(3, 5, figure=figs[-1])
-        ax1 = figs[-1].add_subplot(gs[:, 0])
-        ax2 = figs[-1].add_subplot(gs[:, 1])
-        ax3 = figs[-1].add_subplot(gs[:, 2])
-        ax4 = figs[-1].add_subplot(gs[1, 3:])
-        ax5 = figs[-1].add_subplot(gs[2, 3:])
-        ax6 = figs[-1].add_subplot(gs[0, 3:])
+        gs = GridSpec(3, 5, figure=fig)
+        ax1 = fig.add_subplot(gs[:, 0])
+        ax2 = fig.add_subplot(gs[:, 1])
+        ax3 = fig.add_subplot(gs[:, 2])
+        ax4 = fig.add_subplot(gs[1, 3:])
+        ax5 = fig.add_subplot(gs[2, 3:])
+        ax6 = fig.add_subplot(gs[0, 3:])
 
         ax6.plot(t / 1e-12, np.real(E_ft) / np.max(np.abs(E_ft)))
         ax6.plot(t / 1e-12, np.imag(E_ft) / np.max(np.abs(E_ft)))
@@ -146,6 +142,7 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
         ax5.set_xlabel('Scaled energy (E-Eg)/Eb (a.u.)')
         ax5.set_ylabel('Absorption (a.u.)')
 
+        plt.pause(1)
         plt.draw()
 
     return PSr

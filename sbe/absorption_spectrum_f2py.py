@@ -17,7 +17,7 @@ def absorption(gaas, bs):
     l_k = 300                       # length of k array
     l_f = 1500                       # length of frequency array
     Tempr = 100
-    conc = 5.85e12
+    conc = 5.85e14
 
     # ------------------------------------------------------------
 
