@@ -15,9 +15,9 @@ def absorption(gaas, bs):
     # -------------------- arrays definition ---------------------
 
     l_k = 300                       # length of k array
-    l_f = 500                       # length of frequency array
-    Tempr = 10
-    conc = 5.85e07
+    l_f = 1500                       # length of frequency array
+    Tempr = 100
+    conc = 5.85e12
 
     # ------------------------------------------------------------
 
@@ -30,15 +30,14 @@ def absorption(gaas, bs):
     V = int_matrix(wave_vector, gaas.eps, dim=dim)
     # V = np.zeros((l_k, l_k))
 
-    pulse_widths = 0.15e-14
+    pulse_widths = 1.0e-14
     pulse_delay = 10 * pulse_widths
-    pulse_amp = 1.0e29
-
+    pulse_amp = 1.1
+    e_phot = 0.1 * gaas.Eg
 
     def e_field(t):
-        a = pulse_amp * np.exp(-((t - pulse_delay) ** 2) / (2 * pulse_widths ** 2))  # * np.exp(1j*(0.0 * gaas.Eg / h) * t)
+        a = pulse_amp * np.exp(-((t - pulse_delay) ** 2) / (2 * pulse_widths ** 2)) * np.exp(1j*(e_phot / h) * t)
         return np.nan_to_num(a)
-
 
     flag = False
     subbandss = []
@@ -53,7 +52,7 @@ def absorption(gaas, bs):
                                Ef_h, Ef_e,
                                Tempr,
                                V,
-                               e_field, pulse_widths, pulse_delay, pulse_amp,
+                               e_field, pulse_widths, pulse_delay, pulse_amp, e_phot,
                                debug=True)
 
             ps1 = 2.0 * ps1

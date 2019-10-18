@@ -12,7 +12,7 @@ Subroutine loop(E_ft,l_t, l_f, stt,t, fff, P,eps_0,eps, Eg, h, c, n_reff)
     Real(DP), Intent(in) :: stt
     !! step of time array
 
-    Real(DP), Intent(in) :: E_ft(l_t)
+    Complex(DP), Intent(in) :: E_ft(l_t)
     !! Electric Field
 
     Complex(DP), Intent(in) :: P(l_t)

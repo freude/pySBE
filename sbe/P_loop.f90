@@ -1,5 +1,5 @@
 Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
-        mu, damp, h, V, pulse_d, pulse_w, pulse_a)
+        mu, damp, h, V, pulse_d, pulse_w, pulse_a, e_phot)
     ! Compile this as f2py3 -c P_loop.f90 -m P_loop
     Implicit None
 
@@ -37,7 +37,7 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     Real(DP), Intent(in) :: V(l_k, l_k)
     !! Interaction Matrix
 
-    Real(DP), Intent(in) :: pulse_d, pulse_w, pulse_a
+    Real(DP), Intent(in) :: pulse_d, pulse_w, pulse_a, e_phot
     !! Pusle Delay and Pulse widths
     !! Pulse Parameters
 
@@ -56,22 +56,35 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     !! Looping indexes
     Complex(DP) :: RS, kk1, kk2, kk3, kk4, A(l_k)
     !! Integration temporary quantities
-    Real(DP) :: Ef1, Ef2, Ef3, Ef4
+    Complex(DP) :: Ef1, Ef2, Ef3, Ef4
     Complex(DP) :: pp(l_t, l_k)
+    Real(DP) :: ne_k(l_t, l_k)
+    Real(DP) :: nh_k(l_t, l_k)
     Complex(DP) :: P(l_t)
+
+
+    Do j1 = 1, l_k
+        ne_k(1, j1) = ne(j1)
+        nh_k(1, j1) = nh(j1)
+    End Do
 
     Do j2 = 2, l_t
         Do j1 = 1, l_k
             A(j1) = Sum(V(j1, :) * pp(j2 - 1, :)) * stk
 
-            Ef1 = pulse_a*Exp(-((t(j2 - 1) - pulse_d) ** 2) / (2 * pulse_w ** 2))
-            Ef2 = pulse_a*Exp(-((t(j2 - 1) + stt / 2.0_DP - pulse_d) ** 2) / (2 * pulse_w ** 2))
+            Ef1 = pulse_a*Exp(-((t(j2 - 1) - pulse_d) ** 2) / (2 * pulse_w ** 2)) *&
+                    Exp(Cmplx(0.0_DP, 1.0_DP)*(e_phot / h) * t(j2 - 1))
+            Ef2 = pulse_a*Exp(-((t(j2 - 1) + stt / 2.0_DP - pulse_d) ** 2) / (2 * pulse_w ** 2)) *&
+                    Exp(Cmplx(0.0_DP, 1.0_DP)*(e_phot / h) * (t(j2 - 1)+ stt / 2.0_DP ))
             Ef3 = Ef2
-            Ef4 = pulse_a*Exp(-((t(j2 - 1) + stt - pulse_d) ** 2) / (2 * pulse_w ** 2))
+            Ef4 = pulse_a*Exp(-((t(j2 - 1) + stt - pulse_d) ** 2) / (2 * pulse_w ** 2)) *&
+                    Exp(Cmplx(0.0_DP, 1.0_DP)*(e_phot / h) * (t(j2 - 1) + stt))
+
+            !-------------------  polarization --------------------
 
             RS = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * pp(j2 - 1, j1) &
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne(j1) - nh(j1)) &
+                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
                             * (mu(j1) * Ef1 + A(j1)) / h &
                     - damp * pp(j2 - 1, j1) / h
 
@@ -79,19 +92,19 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
 
             kk2 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk1 / 2.0_DP)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne(j1) - nh(j1)) &
+                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
                             * (mu(j1) * Ef2 + A(j1)) / h &
                     - Damp * (pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) / h
 
             kk3 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk2 / 2.0_DP)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne(j1) - nh(j1)) &
+                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
                             * (mu(j1) * Ef3 + A(j1)) / h &
                     - damp * (pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) / h
 
             kk4 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk3)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne(j1) - nh(j1)) &
+                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
                             * (mu(j1) * Ef4 + A(j1)) / h &
                     - damp * (pp(j2 - 1, j1) + stt * kk3) / h
 
@@ -105,7 +118,23 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
                 P(j2) = P(j2) + 1.0 / (2 * 3.1416 ** 2) * mu(j1) * k(j1) * k(j1) * pp(j2, j1) * stk
             end if
 
+            !------------------- electron density --------------------
 
+            kk1 = -2.0 * imag(conjg(pp(j2 - 1, j1)) * (mu(j1) * Ef1 + A(j1)) / h)
+            kk2 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk1 / 2.0_DP) * (mu(j1) * Ef2 + A(j1)) / h)
+            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk2 / 2.0_DP) * (mu(j1) * Ef3 + A(j1)) / h)
+            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk3) * (mu(j1) * Ef4 + A(j1)) / h)
+
+            ne_k(j2, j1) = ne_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
+
+            !---------------------- hole density ---------------------
+
+            kk1 = -2.0 * imag(conjg(pp(j2 - 1, j1)) * (mu(j1) * Ef1 + A(j1)) / h)
+            kk2 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk1 / 2.0_DP) * (mu(j1) * Ef2 + A(j1)) / h)
+            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk2 / 2.0_DP) * (mu(j1) * Ef3 + A(j1)) / h)
+            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk3) * (mu(j1) * Ef4 + A(j1)) / h)
+
+            nh_k(j2, j1) = nh_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
 
         End Do
 
@@ -131,6 +160,14 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     Open(unit = 21, file = 'P_imag', form = "unformatted", access = 'stream', status = 'unknown')
     Write(21) imag(P)
     Close(21)
+
+    Open(unit = 51, file = 'ne', form = "unformatted", access = 'stream', status = 'unknown')
+    Write(51) ne_k
+    Close(51)
+
+    Open(unit = 53, file = 'nh', form = "unformatted", access = 'stream', status = 'unknown')
+    Write(53) nh_k
+    Close(53)
 
     return
 End Subroutine loop

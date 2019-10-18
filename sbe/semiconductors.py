@@ -219,7 +219,7 @@ class BandStructure3D(BandStructure, object):
         ef_h = self.ef[tempr]["holes"](dens)
         ef_el = self.ef[tempr]["elec"](dens)
 
-        return (-ef_h-np.min(-self.edges_v))*const.e, (ef_el+np.min(self.edges_c))*const.e
+        return -ef_h * const.e, ef_el * const.e
 
 
 class BandStructureQW(BandStructure3D, object):

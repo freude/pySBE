@@ -6,8 +6,7 @@ import P_loop as P_f2py_loop
 import fft_loop as fft_f2py_loop
 
 
-
-def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widths, pulse_delay, pulse_amp, debug):
+def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug):
 
     # ----------------------- parse inputs -----------------------
 
@@ -27,7 +26,7 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
     # -------------------------- time ----------------------------
 
     t_min = 0.0  # min time
-    t_max = 0.9e-12  # max time
+    t_max = 1.5e-11  # max time
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
 
@@ -49,9 +48,9 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
     # Call the Fortran routine to caluculate the required arrays.
 
     P_f2py_loop.loop(dim, l_t, l_k, t, k, stt, stk,
-                     omega, Eg, exce, ne, 1.0 - nh,
+                     omega, Eg, exce, ne, nh,
                      mu, damp, const.h, V,
-                     pulse_delay, pulse_widths, pulse_amp)
+                     pulse_delay, pulse_widths, pulse_amp, e_phot)
 
     # Read the arrays from the drive which are saved by the above Fortran Routine.
 
@@ -85,11 +84,13 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
     PS_real = np.fromfile('PS_real', dtype='float64')
     PS_imag = np.fromfile('PS_imag', dtype='float64')
 
+    ne_k = np.transpose(np.fromfile('ne', dtype='float64').reshape(l_k, l_t))
+    nh_k = np.transpose(np.fromfile('nh', dtype='float64').reshape(l_k, l_t))
+
     PSr = np.fromfile('PSr', dtype='float64')
 
     PS = PS_real + 1j * PS_imag
     ES = ES_real + 1j * ES_imag
-
 
     # ---------------------- Visualization ----------------------
 
@@ -103,22 +104,47 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
         figs.append(plt.figure(figsize=(11, 7), constrained_layout=True))
         from matplotlib.gridspec import GridSpec
 
-        gs = GridSpec(2, 3, figure=figs[-1])
+        gs = GridSpec(3, 5, figure=figs[-1])
         ax1 = figs[-1].add_subplot(gs[:, 0])
-        ax2 = figs[-1].add_subplot(gs[0, 1:])
-        ax3 = figs[-1].add_subplot(gs[1, 1:])
+        ax2 = figs[-1].add_subplot(gs[:, 1])
+        ax3 = figs[-1].add_subplot(gs[:, 2])
+        ax4 = figs[-1].add_subplot(gs[1, 3:])
+        ax5 = figs[-1].add_subplot(gs[2, 3:])
+        ax6 = figs[-1].add_subplot(gs[0, 3:])
 
-        ax2.plot(t / 1e-12, np.real(P) / np.max(np.abs(P)))
-        ax2.plot(t / 1e-12, np.imag(P) / np.max(np.abs(P)))
-        ax2.set_xlabel('Time (ps)')
-        ax2.set_ylabel('Polarization (a.u.)')
+        ax6.plot(t / 1e-12, np.real(E_ft) / np.max(np.abs(E_ft)))
+        ax6.plot(t / 1e-12, np.imag(E_ft) / np.max(np.abs(E_ft)))
+        ax6.set_xlabel('Time (ps)')
+        ax6.set_ylabel('Pump signal (a.u.)')
 
-        ax1.imshow(np.real(pp[l_k * 5: 0: -1, :]))
-        ax1.axis('off')
+        ax4.plot(t / 1e-12, np.real(P) / np.max(np.abs(P)))
+        ax4.plot(t / 1e-12, np.imag(P) / np.max(np.abs(P)))
+        ax4.set_xlabel('Time (ps)')
+        ax4.set_ylabel('Polarization (a.u.)')
 
-        ax3.plot(fff * const.h / const.e / 0.0042, PSr / np.max(PSr))
-        ax3.set_xlabel('Scaled energy (E-Eg)/Eb (a.u.)')
-        ax3.set_ylabel('Absorption (a.u.)')
+        ax3.contourf(k/1e9, t[l_k * 4: 0: -1]/1e-12, np.real(pp[l_k * 4: 0: -1, :]), 100)
+        ax3.set_xlabel(r'Wave vector (nm$^{-1}$)')
+        ax3.set_ylabel('Time (ps)')
+        ax3.title.set_text('Microscopic \n polarization')
+        # ax3.axis('off')
+
+        # ax2.imshow(ne_k[l_k * 4: 0: -1, :])
+        ax2.contourf(k / 1e9, t[l_k * 4: 0: -1] / 1e-12, np.real(ne_k[l_k * 4: 0: -1, :]), 100)
+        ax2.set_xlabel(r'Wave vector (nm$^{-1}$)')
+        ax2.set_ylabel('Time (ps)')
+        ax2.title.set_text('Electron \n distribution')
+        # ax2.axis('off')
+
+        # ax1.imshow(nh_k[l_k * 4: 0: -1, :])
+        ax1.contourf(k / 1e9, t[l_k * 4: 0: -1] / 1e-12, np.real(nh_k[l_k * 4: 0: -1, :]), 100)
+        ax1.set_xlabel(r'Wave vector (nm$^{-1}$)')
+        ax1.set_ylabel('Time (ps)')
+        ax1.title.set_text('Hole \n distribution')
+        # ax1.axis('off')
+
+        ax5.plot(fff * const.h / const.e / 0.0042, PSr / np.max(PSr))
+        ax5.set_xlabel('Scaled energy (E-Eg)/Eb (a.u.)')
+        ax5.set_ylabel('Absorption (a.u.)')
 
         plt.draw()
 
