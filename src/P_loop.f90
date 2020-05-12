@@ -1,5 +1,5 @@
 Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
-        mu, damp, h, V, pulse_d, pulse_w, pulse_a, e_phot)
+        mu, damp, h, V, pulse_d, pulse_w, pulse_a, e_phot, P, pp, ne_k, nh_k)
     ! Compile this as f2py3 -c P_loop.f90 -m P_loop
     Implicit None
 
@@ -27,7 +27,7 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     !! Exchange Energy
     Real(DP), intent(in) :: ne(l_k), nh(l_k)
     !! Distribution Functions
-    Real(DP), Intent(in) :: mu(l_k)
+    Complex(DP), Intent(in) :: mu(l_k)
     !! Dipole Elements
 
     Real(DP), Intent(in) :: damp
@@ -61,6 +61,16 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     Real(DP) :: ne_k(l_t, l_k)
     Real(DP) :: nh_k(l_t, l_k)
     Complex(DP) :: P(l_t)
+
+    !f2py intent(in) dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, mu, damp, h, V, pulse_d, pulse_w, pulse_a, e_phot
+    !f2py intent(out) P
+    !f2py intent(out) pp
+    !f2py intent(out) ne_k
+    !f2py intent(out) nh_k
+    !f2py depend(l_t) P
+    !f2py depend(l_t, l_k) pp
+    !f2py depend(l_t, l_k) ne_k
+    !f2py depend(l_t, l_k) nh_k
 
 
     Do j1 = 1, l_k
@@ -114,30 +124,33 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
 
             if (dim == 2) then
                 P(j2) = P(j2) +  1.0 / (2 * 3.1416) * mu(j1) * k(j1) * pp(j2,j1) * stk
-            else
+            else if (dim == 3) then
                 P(j2) = P(j2) + 1.0 / (2 * 3.1416 ** 2) * mu(j1) * k(j1) * k(j1) * pp(j2, j1) * stk
+            else if (dim == 1) then
+                P(j2) = P(j2) + 1.0 / 3.1416 * mu(j1) * pp(j2, j1) * stk
+            else
+                P(j2) = 0
             end if
 
             !------------------- electron density --------------------
 
-            kk1 = -2.0 * imag(conjg(pp(j2 - 1, j1)) * (mu(j1) * Ef1 + A(j1)) / h)
-            kk2 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk1 / 2.0_DP) * (mu(j1) * Ef2 + A(j1)) / h)
-            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk2 / 2.0_DP) * (mu(j1) * Ef3 + A(j1)) / h)
-            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk3) * (mu(j1) * Ef4 + A(j1)) / h)
+            kk1 = 2.0 * imag(pp(j2 - 1, j1) * conjg((mu(j1) * Ef1 + A(j1)) / h))
+            kk2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * conjg((mu(j1) * Ef2 + A(j1)) / h))
+            kk3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * conjg((mu(j1) * Ef3 + A(j1)) / h))
+            kk4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * conjg((mu(j1) * Ef4 + A(j1)) / h))
 
             ne_k(j2, j1) = ne_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
 
             !---------------------- hole density ---------------------
 
-            kk1 = -2.0 * imag(conjg(pp(j2 - 1, j1)) * (mu(j1) * Ef1 + A(j1)) / h)
-            kk2 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk1 / 2.0_DP) * (mu(j1) * Ef2 + A(j1)) / h)
-            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk2 / 2.0_DP) * (mu(j1) * Ef3 + A(j1)) / h)
-            kk3 = -2.0 * imag((conjg(pp(j2 - 1, j1)) + stt * kk3) * (mu(j1) * Ef4 + A(j1)) / h)
+            kk1 = 2.0 * imag(pp(j2 - 1, j1) * conjg((mu(j1) * Ef1 + A(j1)) / h))
+            kk2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * conjg((mu(j1) * Ef2 + A(j1)) / h))
+            kk3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * conjg((mu(j1) * Ef3 + A(j1)) / h))
+            kk4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * conjg((mu(j1) * Ef4 + A(j1)) / h))
 
             nh_k(j2, j1) = nh_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
 
         End Do
-
     End Do
 
 
@@ -145,29 +158,29 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     ! The real and imaginary parts are written separately.
     ! This makes reading in python easier.
 
-    Open(unit = 30, file = 'pp_real', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(30) Real(pp)
-    Close(30)
+!    Open(unit = 30, file = 'pp_real', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(30) Real(pp)
+!    Close(30)
+!
+!    Open(unit = 31, file = 'pp_imag', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(31) Imag(pp)
+!    Close(31)
 
-    Open(unit = 31, file = 'pp_imag', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(31) Imag(pp)
-    Close(31)
+!    Open(unit = 20, file = 'P_real', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(20) real(P)
+!    Close(20)
+!
+!    Open(unit = 21, file = 'P_imag', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(21) imag(P)
+!    Close(21)
 
-    Open(unit = 20, file = 'P_real', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(20) real(P)
-    Close(20)
-
-    Open(unit = 21, file = 'P_imag', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(21) imag(P)
-    Close(21)
-
-    Open(unit = 51, file = 'ne', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(51) ne_k
-    Close(51)
-
-    Open(unit = 53, file = 'nh', form = "unformatted", access = 'stream', status = 'unknown')
-    Write(53) nh_k
-    Close(53)
+!    Open(unit = 51, file = 'ne', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(51) ne_k
+!    Close(51)
+!
+!    Open(unit = 53, file = 'nh', form = "unformatted", access = 'stream', status = 'replace')
+!    Write(53) nh_k
+!    Close(53)
 
     return
 End Subroutine loop

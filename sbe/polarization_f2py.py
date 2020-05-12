@@ -5,7 +5,7 @@ from sbe.int_matrix import exchange
 import sbe.P_loop as P_f2py_loop
 
 
-def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widths, pulse_delay, pulse_amp, debug):
+def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug=True):
 
     # ----------------------- parse inputs -----------------------
 
@@ -25,13 +25,13 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
     # -------------------------- time ----------------------------
 
     t_min = 0.0  # min time
-    t_max = 0.9e-12  # max time
+    t_max = 0.5e-12  # max time
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
 
     # ------------------------------------------------------------
 
-    damp = 0.003 * const.e  # damping
+    damp = 2.003 * const.e  # damping
     omega = Ee - Eh
     Eg = const.h * omega[0]
 
