@@ -1,4 +1,7 @@
+import os
+import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy import interpolate
 import sbe.constants as const
 from sbe.abstract_interfaces import BandStructure
@@ -28,12 +31,14 @@ class GaAs(object):
 
     def __init__(self, tempr=0, tempr_dep='varshni'):
 
+        self.dim = 3
+
         self.tempr_dep = tempr_dep
         self.tempr = tempr
 
         # --------------- band structure parameters ---------------
 
-        self.Eg = 1.519 * const.e       # nominal band gap
+        self.Eg = 1.519 * const.e  # nominal band gap
         self.Eso = -0.341 * const.e  # nominal band gap
 
         self.gamma1 = 6.98
@@ -41,16 +46,16 @@ class GaAs(object):
         self.gamma3 = 2.93
         self.gamma = 0.5 * (self.gamma2 + self.gamma2)
 
-        self.me = 0.0665 * const.m0      # electrons effective mass
-        self.mhh = const.m0 / (self.gamma1 - 2 * self.gamma)       # holes effective mass
+        self.me = 0.0665 * const.m0  # electrons effective mass
+        self.mhh = const.m0 / (self.gamma1 - 2 * self.gamma)  # holes effective mass
         self.mlh = const.m0 / (self.gamma1 + 2 * self.gamma)  # holes effective mass
         self.mso = 0.172 * const.m0  # holes effective mass
         self.mh = (self.mhh, self.mlh, self.mso)
 
         # ----------------- dielectric screening ------------------
 
-        self.eps = 12.93          # permitivity
-        self.n_reff = 3.61        # refraction index
+        self.eps = 12.93  # permitivity
+        self.n_reff = 3.61  # refraction index
 
         # ------------------- scaling constants -------------------
 
@@ -61,8 +66,8 @@ class GaAs(object):
         # --------------------- Varshni formula -------------------
 
         # Varshni perameters
-        self.alpha = 0.605                  # meV/K
-        self.betha = 204                    # K
+        self.alpha = 0.605  # meV/K
+        self.betha = 204  # K
 
         if self.tempr_dep == 'varshni':
             self.Eg = self.Eg - const.e * 0.001 * self.alpha * tempr * tempr / (tempr + self.betha)
@@ -71,29 +76,28 @@ class GaAs(object):
         # ------------- Appl. Phys. Lett. 58 (25) (1991) ----------
 
         # O’Donnell-Chen formula
-        self.coupling = 3.0                 # meV/K
-        self.phonon_energy = 26.7           # meV
+        self.coupling = 3.0  # meV/K
+        self.phonon_energy = 26.7  # meV
 
         if self.tempr_dep == 'odonnell':
-            self.Eg = self.Eg - const.e * 0.001 * self.phonon_energy * self.coupling *\
+            self.Eg = self.Eg - const.e * 0.001 * self.phonon_energy * self.coupling * \
                       (1.0 / np.tanh(self.phonon_energy * const.e * 0.001 / (2 * const.kb * tempr)) - 1.0)
 
         # ------------ energy of momentum matrix element -----------
         # ----------- between conduction and valence bands ---------
 
-        self.e_P = 28.8          # eV
+        self.e_P = 28.8  # eV
 
 
 class Tc(object):
     def __init__(self, dim=2):
-
         self.dim = dim
 
-        self.Eg = 1.519 * const.e    # nominal band gap
-        self.me = 2 * const.m0       # electrons effective mass
-        self.mh = 2 * const.m0       # holes effective mass
-        self.eps = 24.93              # permitivity
-        self.n_reff = 3.61           # refraction index
+        self.Eg = 1.519 * const.e  # nominal band gap
+        self.me = 2 * const.m0  # electrons effective mass
+        self.mh = 2 * const.m0  # holes effective mass
+        self.eps = 24.93  # permitivity
+        self.n_reff = 3.61  # refraction index
 
         # ------------------- scaling constants -------------------
 
@@ -128,7 +132,7 @@ class BandStructure3D(BandStructure, object):
             raise ValueError("Band index exceeds maximal value")
 
         if self.mat is not None:
-            energy = self.edges_c[j] + const.h**2 * k**2 / (2 * self.mat.me)
+            energy = self.edges_c[j] + const.h ** 2 * k ** 2 / (2 * self.mat.me)
         else:
             energy = None
 
@@ -198,18 +202,18 @@ class BandStructure3D(BandStructure, object):
             vbt = np.min(-self.edges_v) / const.e
 
             self.ef[tempr] = {}
-            probe_fermi = np.linspace(self.mat.Eg / const.e * 0.5, cbb+1.5, 50)
+            probe_fermi = np.linspace(self.mat.Eg / const.e * 0.5, cbb + 1.5, 350)
             conc = np.zeros(probe_fermi.shape)
-            energy = np.linspace(cbb-0.5, cbb+5, 3000)
+            energy = np.linspace(cbb - 0.5, cbb + 5, 3000)
             for jj, ef in enumerate(probe_fermi):
                 conc[jj] = np.trapz(fd(energy, ef, tempr) * self.dos(energy, carriers="electrons"),
                                     x=energy * const.e)
 
-            self.ef[tempr]["elec"] = interpolate.interp1d(conc, probe_fermi, fill_value="extrapolate")
+            self.ef[tempr]["elec"] = interpolate.interp1d(conc, probe_fermi, fill_value=0, kind='cubic')
 
             probe_fermi = np.linspace(-self.mat.Eg / const.e * 0.5, vbt + 1.0, 550)
             conc = np.zeros(probe_fermi.shape)
-            energy = np.linspace(vbt, vbt+10, 350)
+            energy = np.linspace(vbt, vbt + 10, 350)
             for jj, ef in enumerate(probe_fermi):
                 conc[jj] = np.trapz(fd(energy, ef, tempr) * self.dos(energy, carriers="holes"),
                                     x=energy * const.e)
@@ -219,7 +223,20 @@ class BandStructure3D(BandStructure, object):
         ef_h = self.ef[tempr]["holes"](dens)
         ef_el = self.ef[tempr]["elec"](dens)
 
-        return (-ef_h-np.min(-self.edges_v))*const.e, (ef_el+np.min(self.edges_c))*const.e
+        return -ef_h * const.e, ef_el * const.e
+
+    def plot(self):
+
+        kk = np.linspace(0, 1.0, 100) * 3e9
+
+        for j1 in range(self.n_sb_e):
+            for j2 in range(self.n_sb_e):
+                _, val, cond, dip = self.get_optical_transition_data(kk, j1, j2)
+
+                plt.plot(kk, val / const.e)
+                plt.plot(kk, cond / const.e)
+
+        plt.show()
 
 
 class BandStructureQW(BandStructure3D, object):
@@ -228,48 +245,8 @@ class BandStructureQW(BandStructure3D, object):
     """
 
     def __init__(self, **kwargs):
-
         super(BandStructureQW, self).__init__(**kwargs)
         self.dim = 2
-
-    def _cond_band(self, j, k, units='eV'):
-
-        if j >= self.n_sb_e:
-            raise ValueError("Band index exceeds maximal value")
-
-        if self.mat is not None:
-            energy = self.edges_c[j] + const.h**2 * k**2 / (2 * self.mat.me)
-        else:
-            energy = None
-
-        return energy
-
-    def _val_band(self, j, k, units='eV'):
-
-        if j >= self.n_sb_e:
-            raise ValueError("Band index exceeds maximal value")
-
-        if self.mat is not None:
-            energy = self.edges_v[j]-const.h**2 * k**2 / (2 * self.mat.mh)
-        else:
-            energy = None
-
-        return energy
-
-    def _dipole(self, j1, j2, k, units='eV'):
-
-        p = np.sqrt(self.mat.e_P * const.h / const.m0 * const.h / 2)
-
-        if j1 >= self.n_sb_h:
-            raise ValueError("Band index exceeds maximal value")
-
-        if j2 >= self.n_sb_e:
-            raise ValueError("Band index exceeds maximal value")
-
-        return 1.0 * np.ones(k.shape)
-
-    def get_optical_transition_data(self, kk, j1, j2):
-        return kk, self._val_band(j1, kk), self._cond_band(j2, kk), self._dipole(j1, j2, kk)
 
 
 def _dos_single_subband(energy, meff, dim=3, units='eV'):
@@ -301,12 +278,123 @@ def _dos_single_subband(energy, meff, dim=3, units='eV'):
 
     # Eq. (6.17) from [Haug, Koch, Quantum Theory of the Optical and
     # Electronic Properties of Semiconductors, 2004]
-    dos += np.nan_to_num(omega_D / ((2 * np.pi) ** dim) * \
-           ((2 * meff / const.h / const.h) ** (dim / 2)) * \
-           ((energy * alpha) ** ((dim - 2) / 2)) *\
-           (np.sign(energy)+1.0) * 0.5)
+    dos += np.nan_to_num(omega_D / ((2 * np.pi) ** dim) *
+                         ((2 * meff / const.h / const.h) ** (dim / 2)) *
+                         ((energy * alpha) ** ((dim - 2) / 2)) *
+                         (np.sign(energy) + 1.0) * 0.5)
 
     return dos
+
+
+class BandStructure(object):
+    """
+    Parabolic band approximation
+    """
+
+    def __init__(self, mat, **kwargs):
+
+        self.mat = mat
+        self.dim = kwargs.get('dim', 1)
+        val_file = kwargs.get('val_band', None)
+        cond_file = kwargs.get('cond_band', None)
+        dipoles_file = kwargs.get('dipoles', None)
+        if os.path.getsize(val_file) > 0:
+            with open(val_file, 'rb') as file:
+                self.val_bands = pickle.load(file)
+        if os.path.getsize(cond_file) > 0:
+            with open(cond_file, 'rb') as file:
+                self.cond_bands = pickle.load(file)
+        if os.path.getsize(dipoles_file) > 0:
+            with open(dipoles_file, 'rb') as file:
+                self.dipoles = pickle.load(file)
+
+        self.n_sb_e = len(self.cond_bands)
+        self.n_sb_h = len(self.val_bands)
+
+        self.ef = {}
+
+    def _cond_band(self, j, k, units='eV'):
+
+        if j >= self.n_sb_e:
+            raise ValueError("Band index exceeds maximal value")
+
+        return self.cond_bands[j](k) * const.e
+
+    def _val_band(self, j, k, units='eV'):
+
+        if j >= self.n_sb_h:
+            raise ValueError("Band index exceeds maximal value")
+
+        return self.val_bands[j](k) * const.e
+
+    def _dipole(self, j1, j2, k, units='eV'):
+
+        if j1 >= self.n_sb_h:
+            raise ValueError("Band index exceeds maximal value")
+
+        if j2 >= self.n_sb_e:
+            raise ValueError("Band index exceeds maximal value")
+
+        return (self.dipoles[j1][j2](k)) * 1e-31 + 0*np.ones(k.shape) * 1e-29
+
+    def get_optical_transition_data(self, kk, j1, j2):
+        return kk, self._val_band(j1, kk), self._cond_band(j2, kk), self._dipole(j1, j2, kk)
+
+    def dos(self, energy, carriers="electrons"):
+        pass
+
+    def get_Fermi_levels(self, tempr, dens):
+        """
+        Computes Fermi energy
+
+        :param meff:    effective mass
+        :param tempr:   temperature
+        :param dens:    electron density
+        :return:        Fermi energy in eV relative to the band edge
+        """
+
+        if tempr not in self.ef:
+
+            cbb = np.min(self.edges_c) / const.e
+            vbt = np.min(-self.edges_v) / const.e
+
+            self.ef[tempr] = {}
+            probe_fermi = np.linspace(self.mat.Eg / const.e * 0.5, cbb + 1.5, 50)
+            conc = np.zeros(probe_fermi.shape)
+            energy = np.linspace(cbb - 0.5, cbb + 5, 3000)
+            for jj, ef in enumerate(probe_fermi):
+                conc[jj] = np.trapz(fd(energy, ef, tempr) * self.dos(energy, carriers="electrons"),
+                                    x=energy * const.e)
+
+            self.ef[tempr]["elec"] = interpolate.interp1d(conc, probe_fermi, fill_value="extrapolate")
+
+            probe_fermi = np.linspace(-self.mat.Eg / const.e * 0.5, vbt + 1.0, 550)
+            conc = np.zeros(probe_fermi.shape)
+            energy = np.linspace(vbt, vbt + 10, 350)
+            for jj, ef in enumerate(probe_fermi):
+                conc[jj] = np.trapz(fd(energy, ef, tempr) * self.dos(energy, carriers="holes"),
+                                    x=energy * const.e)
+
+            self.ef[tempr]["holes"] = interpolate.interp1d(conc, probe_fermi, fill_value="extrapolate")
+
+        ef_h = self.ef[tempr]["holes"](dens)
+        ef_el = self.ef[tempr]["elec"](dens)
+
+        return -ef_h * const.e, ef_el * const.e
+
+    def plot(self, kk=None):
+
+        if kk is None:
+            kk = np.linspace(0, 1.0, 100) * 7e9
+
+        for j1 in range(self.n_sb_h):
+            for j2 in range(self.n_sb_e):
+                _, val, cond, dip = self.get_optical_transition_data(kk, j1, j2)
+
+                plt.plot(kk, val / const.e)
+                plt.plot(kk, cond / const.e)
+
+        plt.show()
 
 
 def get_Fermi_levels_2D(meff, tempr, dens):
@@ -326,16 +414,16 @@ def get_Fermi_levels_2D(meff, tempr, dens):
     return ef
 
 
-if __name__ == '__main__':
-
+def main():
     import matplotlib.pyplot as plt
 
-    conc = np.linspace(1e3, 1e16, 100)
+    conc = np.array([1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17,
+                     1e18, 1e19, 1e20, 1e21, 1e22, 1e23, 1e24, 1e25])
     meff = GaAs().me
-    tempr = 300
-    # ef = get_Fermi_levels_2D(meff, tempr, conc)
-    # plt.plot(conc, ef)
-    # plt.show()
+    tempr = 10
+    ef = get_Fermi_levels_2D(meff, tempr, conc)
+    plt.plot(conc, ef)
+    plt.show()
 
     ef = []
 
@@ -345,6 +433,36 @@ if __name__ == '__main__':
     for concentr in conc:
         ef_h, ef_el = bs.get_Fermi_levels(tempr, concentr)
         ef.append(ef_el)
-
-    plt.plot(conc, ef)
+    print(bs.mat.Eg / 1.6e-19)
+    plt.plot(conc, np.array(ef) / 1.6e-19 - 0 * bs.mat.Eg / 1.6e-19)
+    plt.xscale('log')
+    plt.yscale('log')
     plt.show()
+
+
+def main1():
+    import matplotlib.pyplot as plt
+
+    bs = BandStructure(val_band='/home/mk/perovsk_project/val_band.pkl',
+                       cond_band='/home/mk/perovsk_project/cond_band.pkl',
+                       dipoles='/home/mk/perovsk_project/dipoles.pkl')
+    k = np.linspace(0.0, 4e9, 100)
+
+    _, vb, cb, d = bs.get_optical_transition_data(k, 0, 0)
+    _, vb1, cb1, d = bs.get_optical_transition_data(k, 1, 1)
+    _, vb2, cb2, d = bs.get_optical_transition_data(k, 2, 2)
+    _, vb3, cb3, d = bs.get_optical_transition_data(k, 3, 3)
+
+    plt.plot(k, vb)
+    plt.plot(k, cb)
+    plt.plot(k, vb1)
+    plt.plot(k, cb1)
+    plt.plot(k, vb2)
+    plt.plot(k, cb2)
+    plt.plot(k, vb3)
+    plt.plot(k, cb3)
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
