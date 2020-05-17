@@ -1,6 +1,7 @@
 Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
         mu, damp, h, V, pulse_d, pulse_w, pulse_a, e_phot, P, pp, ne_k, nh_k)
-    ! Compile this as f2py3 -c P_loop.f90 -m P_loop
+  ! Compile this as f2py3 -c P_loop.f90 -m P_loop
+  ! This is written in such a way that the integration is interwoven.
     Implicit None
 
     ! ==============  Input ===============
@@ -55,6 +56,8 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
     Integer :: j1, j2
     !! Looping indexes
     Complex(DP) :: RS, kk1, kk2, kk3, kk4, A(l_k)
+    Complex(DP) :: mm1, mm2, mm3, mm4
+    Complex(DP) :: nn1, nn2, nn3, nn4
     !! Integration temporary quantities
     Complex(DP) :: Ef1, Ef2, Ef3, Ef4
     Complex(DP) :: pp(l_t, l_k)
@@ -99,26 +102,34 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
                     - damp * pp(j2 - 1, j1) / h
 
             kk1 = RS
+            mm1 = 2.0 * imag(pp(j2 - 1, j1) * Conjg((mu(j1) * Ef1 + A(j1)) / h))
+            nn1 = 2.0 * imag(pp(j2 - 1, j1) * Conjg((mu(j1) * Ef1 + A(j1)) / h))
 
             kk2 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk1 / 2.0_DP)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
+                    + Cmplx(0.0_DP, -1.0_DP) * ( (ne_k(j2-1, j1) + 0.5 * mm1) + (nh_k(j2-1, j1) +0.5*nn1) - 1.0) &
                             * (mu(j1) * Ef2 + A(j1)) / h &
-                    - Damp * (pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) / h
+                            - Damp * (pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) / h
+            mm2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * Conjg((mu(j1) * Ef2 + A(j1)) / h))
+            nn2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * conjg((mu(j1) * Ef2 + A(j1)) / h))
+            
 
             kk3 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk2 / 2.0_DP)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
+                    + Cmplx(0.0_DP, -1.0_DP) * ((ne_k(j2-1, j1) + 0.5*mm2) + (nh_k(j2-1, j1) +0.5*nn2) - 1.0) &
                             * (mu(j1) * Ef3 + A(j1)) / h &
                     - damp * (pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) / h
-
+            mm3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * Conjg((mu(j1) * Ef3 + A(j1)) / h))
+            nn3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * conjg((mu(j1) * Ef3 + A(j1)) / h))
+            
             kk4 = Cmplx(0.0_DP, -1.0_DP) * (omega(j1) - PEg / h - exce(j1) / h) &
                     * (pp(j2 - 1, j1) + stt * kk3)&
-                    + Cmplx(0.0_DP, -1.0_DP) * (ne_k(j2-1, j1) + nh_k(j2-1, j1) - 1.0) &
+                    + Cmplx(0.0_DP, -1.0_DP) * ((ne_k(j2-1, j1) + mm3) + (nh_k(j2-1, j1)+ nn3) - 1.0) &
                             * (mu(j1) * Ef4 + A(j1)) / h &
                     - damp * (pp(j2 - 1, j1) + stt * kk3) / h
+            mm4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * Conjg((mu(j1) * Ef4 + A(j1)) / h))
+            nn4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * Conjg((mu(j1) * Ef4 + A(j1)) / h))
 
-            !Print *, 'kks ', kk1,kk2,kk3,kk4
 
             pp(j2, j1) = pp(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
 
@@ -134,21 +145,11 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
 
             !------------------- electron density --------------------
 
-            kk1 = 2.0 * imag(pp(j2 - 1, j1) * conjg((mu(j1) * Ef1 + A(j1)) / h))
-            kk2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * conjg((mu(j1) * Ef2 + A(j1)) / h))
-            kk3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * conjg((mu(j1) * Ef3 + A(j1)) / h))
-            kk4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * conjg((mu(j1) * Ef4 + A(j1)) / h))
-
-            ne_k(j2, j1) = ne_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
+            ne_k(j2, j1) = ne_k(j2 - 1, j1) + (stt / 6.0_DP) * (mm1 + 2.0_DP * mm2 + 2.0_DP * mm3 + mm4)
 
             !---------------------- hole density ---------------------
 
-            kk1 = 2.0 * imag(pp(j2 - 1, j1) * conjg((mu(j1) * Ef1 + A(j1)) / h))
-            kk2 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk1 / 2.0_DP) * conjg((mu(j1) * Ef2 + A(j1)) / h))
-            kk3 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk2 / 2.0_DP) * conjg((mu(j1) * Ef3 + A(j1)) / h))
-            kk4 = 2.0 * imag((pp(j2 - 1, j1) + stt * kk3) * conjg((mu(j1) * Ef4 + A(j1)) / h))
-
-            nh_k(j2, j1) = nh_k(j2 - 1, j1) + (stt / 6.0_DP) * (kk1 + 2.0_DP * kk2 + 2.0_DP * kk3 + kk4)
+            nh_k(j2, j1) = nh_k(j2 - 1, j1) + (stt / 6.0_DP) * (nn1 + 2.0_DP * nn2 + 2.0_DP * nn3 + nn4)
 
         End Do
     End Do

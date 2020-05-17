@@ -249,7 +249,7 @@ def absorption(bs, scratch=False, save=True):
                 if scratch:
                     ps1 = np.load('ps' + str(j1) + str(j2) + '_17_18.npy')
                 else:
-                    ps1 = polarization(freq_array, dim, bs.mat, subbands,
+                    ps1 = polarization1(freq_array, dim, bs.mat, subbands,
                                        Ef_h, Ef_e,
                                        Tempr,
                                        V / scr,
@@ -698,8 +698,8 @@ def main2(scratch=False, save=False):
     logging.info("Loop over pairs of subbands:")
     # for j1 in [0, 1]:
     #     for j2 in [0, 1]:
-    for j1 in [0, 1, 2, 3]:
-        for j2 in [0, 1, 2, 3, 4, 5, 6, 7]:
+    for j1 in [0, 1, 2, 3, 4, 5]:
+        for j2 in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
             # if ((j1 % 2) == (j2 % 2)) and (j2 != 4):
             # if (j1 % 2) != (j2 % 2):
 
@@ -804,9 +804,9 @@ def main2(scratch=False, save=False):
 
 if __name__ == '__main__':
 
-    gaas = GaAs()
-    bs = BandStructure3D(material=gaas)
-    energy, ans = absorption(bs)
+    # gaas = GaAs()
+    # bs = BandStructure3D(material=gaas)
+    # energy, ans = absorption(bs)
 
     energy, ps = main2()
 

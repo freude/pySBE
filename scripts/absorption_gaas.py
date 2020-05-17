@@ -3,15 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sbe.constants import h, e
 from sbe.int_matrix import int_matrix
-from sbe.Pol_FFT_f2py import polarization
+from sbe.Pol_FFT_f2py import polarization_app
 from sbe.semiconductors import BandStructureQW, BandStructure3D, GaAs
 from sbe.aux_functions import yaml_parser
 import sbe.constants as const
 
 
-config_file = """
-
-verbosity:  True
+config_file = """verbosity:  True
 damp:      0.003    # dephasing factor in eV
 
 # ---------------- k grids ------------------
@@ -32,16 +30,41 @@ conc:    5.0e+14    # carrier concentration
 
 # --------- external field parameters -------
 
-pulse_width: 0.01   # pulse width in femtoseconds
+pulse_width:  1.0   # pulse width in femtoseconds
 pulse_delay:  100   # pulse delay in the units of the pulse width
-pulse_amp: 1.e-27   # amplitude
+pulse_amp: 5.e+1   # amplitude
 e_phot:         0   # photon energy in the units of the fundamental band gap
 
 # ----------- data management ---------------
 
 scratch:   False
 save:      False
+file_label:  "1"    # id added to the file name 
+temp_dir:    "~"    # storage for graphic information
 
+"""
+
+mat_file = """# -------- Band structure parameters ---------
+
+Eg:      1.519      # band gap
+Eso:    -0.341      # spin-orbit splitting
+
+gamma1:   6.98      # Luttinger parameters
+gamma2:   2.06
+gamma3:   2.93
+        
+me:     0.0665      # electron effective mass
+mso:     0.172      # spin-orbit effective mass
+
+# ----------- Dielectric screening -----------
+
+eps:     12.93      # dielectric constant
+n_reff:   3.16      # refractive index
+
+# ------------ Varshni parameters ------------
+
+alpha:   0.605      # meV / K    
+betha:     204      # meV
 """
 
 
@@ -94,11 +117,11 @@ def absorption(bs, **kwargs):
     # V = np.zeros((l_k, l_k))
 
     def e_field(t):
-        pulse_widths = 0.01e-14
-        pulse_delay = 10 * pulse_widths
-        # pulse_amp = 1.0e7
-        pulse_amp = 1.0e-3
-        e_phot = 0.1 * bs.mat.Eg * 0
+        # pulse_widths = 0.01e-14
+        # pulse_delay = 10 * pulse_widths
+        # # pulse_amp = 1.0e7
+        # pulse_amp = 1.0e-3
+        # e_phot = 0.1 * bs.mat.Eg * 0
         a = pulse_amp * np.exp(-((t - pulse_delay) ** 2) / (2 * pulse_widths ** 2)) * np.exp(1j * (e_phot / h) * t)
         return np.nan_to_num(a)
 
@@ -118,7 +141,7 @@ def absorption(bs, **kwargs):
             if scratch:
                 ps1 = np.load('ps' + str(j1) + str(j2) + '_17_18.npy')
             else:
-                ps1 = polarization(freq_array, dim, bs.mat, subbands,
+                ps1, data = polarization_app(freq_array, dim, bs.mat, subbands,
                                    Ef_h, Ef_e,
                                    Tempr,
                                    V,
@@ -146,15 +169,15 @@ def absorption(bs, **kwargs):
 
     ps_tot = np.sum(np.array(ps), axis=0)
 
-    plt.figure()
-    for item in ps:
-        plt.plot((freq_array * h + Eg) / e, item / 1e5)
-    plt.plot((freq_array * h + Eg) / e, ps_tot / 1e5, 'k')
-    plt.fill_between((freq_array * h + Eg) / e, ps_tot / 1e5, facecolor='gray', alpha=0.5)
-    plt.xlabel('Energy (eV)')
-    plt.ylabel(r'Absorption ($10^5$ m$^{-1}$)')
-    plt.gca().legend(('heavy holes', 'light holes', 'total'))
-    plt.show()
+    # plt.figure()
+    # for item in ps:
+    #     plt.plot((freq_array * h + Eg) / e, item / 1e5)
+    # plt.plot((freq_array * h + Eg) / e, ps_tot / 1e5, 'k')
+    # plt.fill_between((freq_array * h + Eg) / e, ps_tot / 1e5, facecolor='gray', alpha=0.5)
+    # plt.xlabel('Energy (eV)')
+    # plt.ylabel(r'Absorption ($10^5$ m$^{-1}$)')
+    # plt.gca().legend(('heavy holes', 'light holes', 'total'))
+    # plt.show()
 
     energy = (freq_array * h + Eg) / e
 
@@ -162,7 +185,7 @@ def absorption(bs, **kwargs):
         np.save('abs.npy', ps_tot)
         np.save('energy.npy', energy)
 
-    return energy, ps_tot
+    return energy, ps_tot, data
 
 
 def main2D():
@@ -180,11 +203,12 @@ def main3D():
 
     gaas = GaAs()
     bs = BandStructure3D(material=gaas)
-    energy, ans = absorption(bs, **params)
+    energy, ans, fig = absorption(bs, **params)
 
-    plt.plot(energy, ans)
+    # plt.plot(energy, ans)
+    plt.show()
 
 
 if __name__ == '__main__':
-    main2D()
+    # main2D()
     main3D()
