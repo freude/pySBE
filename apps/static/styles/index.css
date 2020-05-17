@@ -1,0 +1,136 @@
+
+body {
+margin: 0;
+padding: 0;
+font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+color: #444;
+}
+/*
+* Formatting the header area
+*/
+header {
+background-color: #DFB887;
+height: 35px;
+width: 100%;
+opacity: .9;
+margin-bottom: 10px;
+}
+header h1.logo {
+margin: 0;
+font-size: 1.7em;
+color: #fff;
+text-transform: uppercase;
+float: left;
+}
+header h1.logo:hover {
+color: #fff;
+text-decoration: none;
+}
+/*
+* Centering the body content
+*/
+.container {
+width: 1200px;
+margin: 0 auto;
+}
+div.home {
+padding: 10px 0 30px 0;
+background-color: #E6E6FA;
+-webkit-border-radius: 6px;
+-moz-border-radius: 6px;
+border-radius: 6px;
+}
+div.about {
+padding: 10px 0 30px 0;
+background-color: #E6E6FA;
+-webkit-border-radius: 6px;
+-moz-border-radius: 6px;
+border-radius: 6px;
+}
+h1 {
+font-size: 3em;
+text-align: left;
+letter-spacing: -2px;
+color: #999;
+background-color: #DFB887;
+}
+h2 {
+font-size: 2em;
+text-align: left;
+letter-spacing: -2px;
+color: #999;
+}
+h3 {
+font-size: 1.7em;
+font-weight: 100;
+margin-top: 30px;
+text-align: center;
+letter-spacing: -1px;
+color: #999;
+}
+.menu {
+float: right;
+margin-top: 8px;
+}
+.menu li {
+display: inline;
+}
+.menu li + li {
+margin-left: 35px;
+}
+.menu li a {
+color: #444;
+text-decoration: none;
+}
+
+.column {
+  float: left;
+}
+
+.row {
+  display: flex;
+}
+
+.left {
+  width: 25%;
+}
+
+.right {
+  width: 75%;
+}
+
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+label { background: #999; color: white; padding: 3px; }
+.txt {background: white; color: black; padding: 3px; }
+input[type="text"], input[type="password"] { width: 324px; border: 3px solid #999; font-size: 18px; padding: 7px; display: block; }
+#add-new input[type="text"] { width: 532px; float: left; margin: 0 10px 0 69px; }
+#add-new input[type="text"]:focus { border-color: #73B8BF; }
+#add-new input[type="submit"] { padding: 10px 12px; }
+input[type=submit] {
+    padding:5px 15px;
+    background:#ccc;
+    border:0 none;
+    cursor:pointer;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+}
+
+textarea {
+  font-size: 8;
+}
+
+button {
+    padding:5px 15px;
+    background:#ccc;
+    border:0 none;
+    cursor:pointer;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+}
