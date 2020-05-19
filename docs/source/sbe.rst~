@@ -1,0 +1,102 @@
+sbe package
+===========
+
+Submodules
+----------
+
+sbe.Pol\_FFT\_f2py module
+-------------------------
+
+.. automodule:: sbe.Pol_FFT_f2py
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.absorption\_spectrum\_f2py module
+-------------------------------------
+
+.. automodule:: sbe.absorption_spectrum_f2py
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.absorption\_spectrum\_vec module
+------------------------------------
+
+.. automodule:: sbe.absorption_spectrum_vec
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.abstract\_interfaces module
+-------------------------------
+
+.. automodule:: sbe.abstract_interfaces
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.aux\_functions module
+-------------------------
+
+.. automodule:: sbe.aux_functions
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.constants module
+--------------------
+
+.. automodule:: sbe.constants
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.int\_matrix module
+----------------------
+
+.. automodule:: sbe.int_matrix
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.polarization\_f2py module
+-----------------------------
+
+.. automodule:: sbe.polarization_f2py
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.polarization\_vec module
+----------------------------
+
+.. automodule:: sbe.polarization_vec
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.semiconductors module
+-------------------------
+
+.. automodule:: sbe.semiconductors
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+sbe.stationary module
+---------------------
+
+.. automodule:: sbe.stationary
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: sbe
+    :members:
+    :undoc-members:
+    :show-inheritance:

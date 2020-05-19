@@ -1,0 +1,196 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>sbe.polarization_f2py &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for sbe.polarization_f2py</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">sbe.constants</span> <span class="k">as</span> <span class="nn">const</span>
+<span class="kn">from</span> <span class="nn">sbe.int_matrix</span> <span class="k">import</span> <span class="n">exchange</span>
+<span class="kn">import</span> <span class="nn">sbe.P_loop</span> <span class="k">as</span> <span class="nn">P_f2py_loop</span>
+
+
+<div class="viewcode-block" id="polarization"><a class="viewcode-back" href="../../sbe.html#sbe.polarization_f2py.polarization">[docs]</a><span class="k">def</span> <span class="nf">polarization</span><span class="p">(</span><span class="n">fff</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">bs</span><span class="p">,</span> <span class="n">Ef_h</span><span class="p">,</span> <span class="n">Ef_e</span><span class="p">,</span> <span class="n">Tempr</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">E_field</span><span class="p">,</span> <span class="n">pulse_widths</span><span class="p">,</span> <span class="n">pulse_delay</span><span class="p">,</span> <span class="n">pulse_amp</span><span class="p">,</span> <span class="n">e_phot</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+    <span class="c1"># ----------------------- parse inputs -----------------------</span>
+
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">Eh</span> <span class="o">=</span> <span class="n">bs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span>
+    <span class="n">Ee</span> <span class="o">=</span> <span class="n">bs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bs</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+    <span class="n">l_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>    <span class="c1"># length of k array</span>
+    <span class="n">l_f</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">fff</span><span class="p">)</span>  <span class="c1"># length of frequency array</span>
+    <span class="n">l_t</span> <span class="o">=</span> <span class="mi">20000</span>         <span class="c1"># length of time array</span>
+    <span class="n">stk</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="n">k</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>   <span class="c1"># step in the k-space grid</span>
+
+    <span class="n">eps</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">eps</span>
+    <span class="n">n_reff</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">n_reff</span>
+
+    <span class="c1"># -------------------------- time ----------------------------</span>
+
+    <span class="n">t_min</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># min time</span>
+    <span class="n">t_max</span> <span class="o">=</span> <span class="mf">0.5e-12</span>  <span class="c1"># max time</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span><span class="p">,</span> <span class="n">l_t</span><span class="p">)</span>
+    <span class="n">stt</span> <span class="o">=</span> <span class="n">t</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">t</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="c1"># ------------------------------------------------------------</span>
+
+    <span class="n">damp</span> <span class="o">=</span> <span class="mf">2.003</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>  <span class="c1"># damping</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">Ee</span> <span class="o">-</span> <span class="n">Eh</span>
+    <span class="n">Eg</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">*</span> <span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># ----------------- Distribution functions -------------------</span>
+
+    <span class="n">ne</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">Ee</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">-</span> <span class="n">Ef_e</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">/</span> <span class="n">Tempr</span><span class="p">))</span>
+    <span class="n">nh</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">Eh</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">-</span> <span class="n">Ef_h</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">/</span> <span class="n">Tempr</span><span class="p">))</span>
+
+    <span class="c1"># --------------------------- Exchange energy ----------------</span>
+
+    <span class="n">exce</span> <span class="o">=</span> <span class="n">exchange</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">nh</span><span class="p">,</span> <span class="n">V</span><span class="p">)</span>
+
+    <span class="c1"># Call the Fortran routine to caluculate the required arrays.</span>
+
+    <span class="n">P_f2py_loop</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="n">l_t</span><span class="p">,</span> <span class="n">l_k</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">stt</span><span class="p">,</span> <span class="n">stk</span><span class="p">,</span>
+                     <span class="n">omega</span><span class="p">,</span> <span class="n">Eg</span><span class="p">,</span> <span class="n">exce</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">nh</span><span class="p">,</span>
+                     <span class="n">mu</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span>
+                     <span class="n">pulse_delay</span><span class="p">,</span> <span class="n">pulse_widths</span><span class="p">,</span> <span class="n">pulse_amp</span><span class="p">)</span>
+
+    <span class="c1"># Read the arrays from the drive which are saved by the above Fortran Routine.</span>
+
+    <span class="n">pp_real</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="s1">&#39;pp_real&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">l_k</span><span class="p">,</span> <span class="n">l_t</span><span class="p">))</span>
+    <span class="n">pp_imag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="s1">&#39;pp_imag&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">l_k</span><span class="p">,</span> <span class="n">l_t</span><span class="p">))</span>
+    <span class="n">P_real</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="s1">&#39;P_real&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">)</span>
+    <span class="n">P_imag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfile</span><span class="p">(</span><span class="s1">&#39;P_imag&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">)</span>
+
+    <span class="n">pp</span> <span class="o">=</span> <span class="n">pp_real</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">pp_imag</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="n">P_real</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">P_imag</span>
+
+    <span class="n">E_ft</span> <span class="o">=</span> <span class="n">E_field</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+    <span class="n">ES</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">l_f</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+    <span class="n">PS</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">l_f</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+    <span class="n">PSr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">l_f</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">l_f</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">l_t</span><span class="p">):</span>
+            <span class="n">ES</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">E_ft</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">fff</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">t</span><span class="p">[</span><span class="n">j1</span><span class="p">])</span> <span class="o">*</span> <span class="n">stt</span>
+            <span class="n">PS</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">P</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">fff</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">t</span><span class="p">[</span><span class="n">j1</span><span class="p">])</span> <span class="o">*</span> <span class="n">stt</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span>
+        <span class="n">PSr</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">fff</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">Eg</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">PS</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">ES</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">c</span> <span class="o">*</span> <span class="n">n_reff</span><span class="p">)</span>
+
+    <span class="c1"># ---------------------- Visualization ----------------------</span>
+
+    <span class="n">figs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">figs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;hi&#39;</span><span class="p">)</span>
+
+        <span class="n">figs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="kn">from</span> <span class="nn">matplotlib.gridspec</span> <span class="k">import</span> <span class="n">GridSpec</span>
+
+        <span class="n">gs</span> <span class="o">=</span> <span class="n">GridSpec</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figure</span><span class="o">=</span><span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ax1</span> <span class="o">=</span> <span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">ax2</span> <span class="o">=</span> <span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+        <span class="n">ax3</span> <span class="o">=</span> <span class="n">figs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">gs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+
+        <span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">P</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">P</span><span class="p">)))</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="mf">1e-12</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">P</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">P</span><span class="p">)))</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Polarization (a.u.)&#39;</span><span class="p">)</span>
+
+        <span class="n">ax1</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">pp</span><span class="p">[</span><span class="n">l_k</span> <span class="o">*</span> <span class="mi">5</span><span class="p">:</span> <span class="mi">0</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]))</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+
+        <span class="n">ax3</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">fff</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="mf">0.0042</span><span class="p">,</span> <span class="n">PSr</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">PSr</span><span class="p">))</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Scaled energy (E-Eg)/Eb (a.u.)&#39;</span><span class="p">)</span>
+        <span class="n">ax3</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Absorption (a.u.)&#39;</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">PSr</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

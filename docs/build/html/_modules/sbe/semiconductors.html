@@ -1,0 +1,632 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>sbe.semiconductors &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for sbe.semiconductors</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">interpolate</span>
+<span class="kn">import</span> <span class="nn">sbe.constants</span> <span class="k">as</span> <span class="nn">const</span>
+<span class="kn">from</span> <span class="nn">sbe.abstract_interfaces</span> <span class="k">import</span> <span class="n">BandStructure</span>
+
+
+<div class="viewcode-block" id="fd"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.fd">[docs]</a><span class="k">def</span> <span class="nf">fd</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ef</span><span class="p">,</span> <span class="n">tempr</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fermi-Dirac function</span>
+
+<span class="sd">    :param energy:   energy in eV</span>
+<span class="sd">    :param ef:       Fermi level in eV</span>
+<span class="sd">    :param temp:     temperature in K</span>
+<span class="sd">    :return:         numpy.ndarray of the FD distribution</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kb</span> <span class="o">=</span> <span class="mf">8.61733e-5</span>  <span class="c1"># Boltzmann constant in eV</span>
+    <span class="k">return</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">energy</span> <span class="o">-</span> <span class="n">ef</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">kb</span> <span class="o">*</span> <span class="n">tempr</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="SemicondYAML"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.SemicondYAML">[docs]</a><span class="k">class</span> <span class="nc">SemicondYAML</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The class is a data structure for the material parameters of a semiconductor</span>
+
+<span class="sd">    Parameters are taken from</span>
+<span class="sd">    [I. Vurgaftman, J. R. Meyer, and L. R. Ram-Mohan, J. Appl. Phys., 89 (11), 2001]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="mi">3</span>
+
+        <span class="c1"># --------------- band structure parameters ---------------</span>
+
+        <span class="n">tempr</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tempr&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tempr_dep&#39;</span><span class="p">,</span> <span class="s1">&#39;varshni&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Eg&#39;</span><span class="p">,</span> <span class="mf">1.519</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">*=</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eso</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Eso&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.341</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eso</span> <span class="o">*=</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gamma1&#39;</span><span class="p">,</span> <span class="mf">6.98</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gamma2&#39;</span><span class="p">,</span> <span class="mf">2.06</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma3</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gamma3&#39;</span><span class="p">,</span> <span class="mf">2.93</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;me&#39;</span><span class="p">,</span> <span class="mf">0.0665</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">*=</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span>                                   <span class="c1"># electrons effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mhh</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlh</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mso</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mso&#39;</span><span class="p">,</span> <span class="mf">0.172</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mso</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mso</span>                                 <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mh</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mhh</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlh</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mso</span><span class="p">)</span>
+
+        <span class="c1"># ----------------- dielectric screening ------------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;eps&#39;</span><span class="p">,</span> <span class="mf">12.93</span><span class="p">)</span>                   <span class="c1"># permitivity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_reff</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;n_reff&#39;</span><span class="p">,</span> <span class="mf">3.16</span><span class="p">)</span>              <span class="c1"># refraction index</span>
+
+        <span class="c1"># ------------------- scaling constants -------------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mhh</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mhh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">pi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E_0</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span><span class="p">))</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e_Ry</span>
+
+        <span class="c1"># --------------------- Varshni formula -------------------</span>
+
+        <span class="c1"># Varshni perameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="mf">0.605</span><span class="p">)</span>               <span class="c1"># meV/K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">betha</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;betha&#39;</span><span class="p">,</span> <span class="mi">204</span><span class="p">)</span>                 <span class="c1"># K</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">==</span> <span class="s1">&#39;varshni&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">tempr</span> <span class="o">*</span> <span class="n">tempr</span> <span class="o">/</span> <span class="p">(</span><span class="n">tempr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">betha</span><span class="p">)</span>
+
+        <span class="c1"># ---------------  O’Donnell-Chen formula -----------------</span>
+        <span class="c1"># ------------- Appl. Phys. Lett. 58 (25) (1991) ----------</span>
+
+        <span class="c1"># O’Donnell-Chen formula</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coupling</span> <span class="o">=</span> <span class="mf">3.0</span>  <span class="c1"># meV/K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">=</span> <span class="mf">26.7</span>  <span class="c1"># meV</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">==</span> <span class="s1">&#39;odonnell&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">coupling</span> <span class="o">*</span> \
+                      <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">*</span> <span class="n">tempr</span><span class="p">))</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># ------------ energy of momentum matrix element -----------</span>
+        <span class="c1"># ----------- between conduction and valence bands ---------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">e_P</span> <span class="o">=</span> <span class="mf">28.8</span>  <span class="c1"># eV</span></div>
+
+
+<div class="viewcode-block" id="GaAs"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.GaAs">[docs]</a><span class="k">class</span> <span class="nc">GaAs</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The class is a data structure for the material parameters of a semiconductor</span>
+
+<span class="sd">    Parameters are taken from</span>
+<span class="sd">    [I. Vurgaftman, J. R. Meyer, and L. R. Ram-Mohan, J. Appl. Phys., 89 (11), 2001]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tempr</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tempr_dep</span><span class="o">=</span><span class="s1">&#39;varshni&#39;</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="mi">3</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">=</span> <span class="n">tempr_dep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tempr</span> <span class="o">=</span> <span class="n">tempr</span>
+
+        <span class="c1"># --------------- band structure parameters ---------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="mf">1.519</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>  <span class="c1"># nominal band gap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eso</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.341</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>  <span class="c1"># nominal band gap</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">=</span> <span class="mf">6.98</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span> <span class="o">=</span> <span class="mf">2.06</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma3</span> <span class="o">=</span> <span class="mf">2.93</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">=</span> <span class="mf">0.0665</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span>  <span class="c1"># electrons effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mhh</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlh</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mso</span> <span class="o">=</span> <span class="mf">0.172</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mh</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mhh</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlh</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mso</span><span class="p">)</span>
+
+        <span class="c1"># ----------------- dielectric screening ------------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="mf">12.93</span>  <span class="c1"># permitivity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_reff</span> <span class="o">=</span> <span class="mf">3.61</span>  <span class="c1"># refraction index</span>
+
+        <span class="c1"># ------------------- scaling constants -------------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mhh</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mhh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">pi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E_0</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span><span class="p">))</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e_Ry</span>
+
+        <span class="c1"># --------------------- Varshni formula -------------------</span>
+
+        <span class="c1"># Varshni perameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.605</span>  <span class="c1"># meV/K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">betha</span> <span class="o">=</span> <span class="mi">204</span>  <span class="c1"># K</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">==</span> <span class="s1">&#39;varshni&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">tempr</span> <span class="o">*</span> <span class="n">tempr</span> <span class="o">/</span> <span class="p">(</span><span class="n">tempr</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">betha</span><span class="p">)</span>
+
+        <span class="c1"># ---------------  O’Donnell-Chen formula -----------------</span>
+        <span class="c1"># ------------- Appl. Phys. Lett. 58 (25) (1991) ----------</span>
+
+        <span class="c1"># O’Donnell-Chen formula</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coupling</span> <span class="o">=</span> <span class="mf">3.0</span>  <span class="c1"># meV/K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">=</span> <span class="mf">26.7</span>  <span class="c1"># meV</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tempr_dep</span> <span class="o">==</span> <span class="s1">&#39;odonnell&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">coupling</span> <span class="o">*</span> \
+                      <span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phonon_energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.001</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">*</span> <span class="n">tempr</span><span class="p">))</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># ------------ energy of momentum matrix element -----------</span>
+        <span class="c1"># ----------- between conduction and valence bands ---------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">e_P</span> <span class="o">=</span> <span class="mf">28.8</span>  <span class="c1"># eV</span></div>
+
+
+<div class="viewcode-block" id="Tc"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.Tc">[docs]</a><span class="k">class</span> <span class="nc">Tc</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">Eg</span> <span class="o">=</span> <span class="mf">1.519</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>  <span class="c1"># nominal band gap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span>  <span class="c1"># electrons effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mh</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span>  <span class="c1"># holes effective mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="mf">24.93</span>  <span class="c1"># permitivity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_reff</span> <span class="o">=</span> <span class="mf">3.61</span>  <span class="c1"># refraction index</span>
+
+        <span class="c1"># ------------------- scaling constants -------------------</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mh</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">me</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">mr</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">pi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E_0</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">eps0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">a_0</span><span class="p">))</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e_Ry</span></div>
+
+
+<div class="viewcode-block" id="BandStructure3D"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure3D">[docs]</a><span class="k">class</span> <span class="nc">BandStructure3D</span><span class="p">(</span><span class="n">BandStructure</span><span class="p">,</span> <span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parabolic band approximation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="mi">3</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mat</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;material&#39;</span><span class="p">,</span> <span class="n">GaAs</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;edges_c&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">])))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;edges_v&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ef</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_cond_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">me</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">energy</span>
+
+    <span class="k">def</span> <span class="nf">_val_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">mhh</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">mlh</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">mso</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">energy</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">energy</span>
+
+    <span class="k">def</span> <span class="nf">_dipole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j1</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">j2</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">e_P</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">m0</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">p</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cond_band</span><span class="p">(</span><span class="n">j2</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_val_band</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">d</span>
+
+<div class="viewcode-block" id="BandStructure3D.get_optical_transition_data"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure3D.get_optical_transition_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_optical_transition_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kk</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">kk</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_val_band</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">kk</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cond_band</span><span class="p">(</span><span class="n">j2</span><span class="p">,</span> <span class="n">kk</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dipole</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">,</span> <span class="n">kk</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BandStructure3D.dos"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure3D.dos">[docs]</a>    <span class="k">def</span> <span class="nf">dos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;electrons&quot;</span><span class="p">):</span>
+
+        <span class="n">dos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">energy</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">carriers</span> <span class="o">==</span> <span class="s2">&quot;electrons&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">):</span>
+                <span class="n">dos</span> <span class="o">+=</span> <span class="n">_dos_single_subband</span><span class="p">(</span><span class="n">energy</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">me</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">):</span>
+                <span class="n">dos</span> <span class="o">+=</span> <span class="n">_dos_single_subband</span><span class="p">(</span><span class="n">energy</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">mh</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dos</span></div>
+
+<div class="viewcode-block" id="BandStructure3D.get_Fermi_levels"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure3D.get_Fermi_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_Fermi_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tempr</span><span class="p">,</span> <span class="n">dens</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes Fermi energy</span>
+
+<span class="sd">        :param meff:    effective mass</span>
+<span class="sd">        :param tempr:   temperature</span>
+<span class="sd">        :param dens:    electron density</span>
+<span class="sd">        :return:        Fermi energy in eV relative to the band edge</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">tempr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">:</span>
+
+            <span class="n">cbb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+            <span class="n">vbt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">probe_fermi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">cbb</span> <span class="o">+</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">350</span><span class="p">)</span>
+            <span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">probe_fermi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">cbb</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">cbb</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3000</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jj</span><span class="p">,</span> <span class="n">ef</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">probe_fermi</span><span class="p">):</span>
+                <span class="n">conc</span><span class="p">[</span><span class="n">jj</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">fd</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ef</span><span class="p">,</span> <span class="n">tempr</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dos</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;electrons&quot;</span><span class="p">),</span>
+                                    <span class="n">x</span><span class="o">=</span><span class="n">energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;elec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">probe_fermi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;cubic&#39;</span><span class="p">)</span>
+
+            <span class="n">probe_fermi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">vbt</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">550</span><span class="p">)</span>
+            <span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">probe_fermi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">vbt</span><span class="p">,</span> <span class="n">vbt</span> <span class="o">+</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">350</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jj</span><span class="p">,</span> <span class="n">ef</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">probe_fermi</span><span class="p">):</span>
+                <span class="n">conc</span><span class="p">[</span><span class="n">jj</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">fd</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ef</span><span class="p">,</span> <span class="n">tempr</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dos</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;holes&quot;</span><span class="p">),</span>
+                                    <span class="n">x</span><span class="o">=</span><span class="n">energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;holes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">probe_fermi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span>
+
+        <span class="n">ef_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;holes&quot;</span><span class="p">](</span><span class="n">dens</span><span class="p">)</span>
+        <span class="n">ef_el</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;elec&quot;</span><span class="p">](</span><span class="n">dens</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="o">-</span><span class="n">ef_h</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="n">ef_el</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span></div>
+
+<div class="viewcode-block" id="BandStructure3D.plot"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure3D.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">kk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="mf">3e9</span>
+
+        <span class="k">for</span> <span class="n">j1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">):</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">cond</span><span class="p">,</span> <span class="n">dip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">)</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">val</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">cond</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="BandStructureQW"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructureQW">[docs]</a><span class="k">class</span> <span class="nc">BandStructureQW</span><span class="p">(</span><span class="n">BandStructure3D</span><span class="p">,</span> <span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parabolic band approximation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BandStructureQW</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+<span class="k">def</span> <span class="nf">_dos_single_subband</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">meff</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Density of states of a single parabolic subband for 1, 2 and 3D electron gas</span>
+
+<span class="sd">    :param energy:     energy array</span>
+<span class="sd">    :param meff:       effective mass</span>
+<span class="sd">    :param dim:        space dimensionality</span>
+<span class="sd">    :param units:      energy units</span>
+<span class="sd">    :return:           DOS array per a unit volume, area, or length per Joule</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">energy</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="c1"># integrated space angle</span>
+    <span class="k">if</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">omega_D</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="k">elif</span> <span class="n">dim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">omega_D</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">omega_D</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+
+    <span class="c1"># units conversion</span>
+    <span class="k">if</span> <span class="n">units</span> <span class="o">==</span> <span class="s1">&#39;eV&#39;</span><span class="p">:</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="c1"># Eq. (6.17) from [Haug, Koch, Quantum Theory of the Optical and</span>
+    <span class="c1"># Electronic Properties of Semiconductors, 2004]</span>
+    <span class="n">dos</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">omega_D</span> <span class="o">/</span> <span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">**</span> <span class="n">dim</span><span class="p">)</span> <span class="o">*</span>
+                         <span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">meff</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">dim</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span>
+                         <span class="p">((</span><span class="n">energy</span> <span class="o">*</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">**</span> <span class="p">((</span><span class="n">dim</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span>
+                         <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">energy</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dos</span>
+
+
+<div class="viewcode-block" id="BandStructure"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure">[docs]</a><span class="k">class</span> <span class="nc">BandStructure</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parabolic band approximation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mat</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mat</span> <span class="o">=</span> <span class="n">mat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dim&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">val_file</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;val_band&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cond_file</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cond_band&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">dipoles_file</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dipoles&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">val_file</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">val_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">val_bands</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">cond_file</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cond_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cond_bands</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">dipoles_file</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dipoles_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dipoles</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cond_bands</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_bands</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ef</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_cond_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cond_bands</span><span class="p">[</span><span class="n">j</span><span class="p">](</span><span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+    <span class="k">def</span> <span class="nf">_val_band</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_bands</span><span class="p">[</span><span class="n">j</span><span class="p">](</span><span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+    <span class="k">def</span> <span class="nf">_dipole</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;eV&#39;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">j1</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">j2</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Band index exceeds maximal value&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dipoles</span><span class="p">[</span><span class="n">j1</span><span class="p">][</span><span class="n">j2</span><span class="p">](</span><span class="n">k</span><span class="p">))</span> <span class="o">*</span> <span class="mf">1e-31</span> <span class="o">+</span> <span class="mi">0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1e-29</span>
+
+<div class="viewcode-block" id="BandStructure.get_optical_transition_data"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure.get_optical_transition_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_optical_transition_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kk</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">kk</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_val_band</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">kk</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cond_band</span><span class="p">(</span><span class="n">j2</span><span class="p">,</span> <span class="n">kk</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dipole</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">,</span> <span class="n">kk</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BandStructure.dos"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure.dos">[docs]</a>    <span class="k">def</span> <span class="nf">dos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;electrons&quot;</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="BandStructure.get_Fermi_levels"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure.get_Fermi_levels">[docs]</a>    <span class="k">def</span> <span class="nf">get_Fermi_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tempr</span><span class="p">,</span> <span class="n">dens</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes Fermi energy</span>
+
+<span class="sd">        :param meff:    effective mass</span>
+<span class="sd">        :param tempr:   temperature</span>
+<span class="sd">        :param dens:    electron density</span>
+<span class="sd">        :return:        Fermi energy in eV relative to the band edge</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">tempr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">:</span>
+
+            <span class="n">cbb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_c</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+            <span class="n">vbt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">edges_v</span><span class="p">)</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">probe_fermi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">cbb</span> <span class="o">+</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">probe_fermi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">cbb</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">cbb</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3000</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jj</span><span class="p">,</span> <span class="n">ef</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">probe_fermi</span><span class="p">):</span>
+                <span class="n">conc</span><span class="p">[</span><span class="n">jj</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">fd</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ef</span><span class="p">,</span> <span class="n">tempr</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dos</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;electrons&quot;</span><span class="p">),</span>
+                                    <span class="n">x</span><span class="o">=</span><span class="n">energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;elec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">probe_fermi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span>
+
+            <span class="n">probe_fermi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">vbt</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">550</span><span class="p">)</span>
+            <span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">probe_fermi</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">vbt</span><span class="p">,</span> <span class="n">vbt</span> <span class="o">+</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">350</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">jj</span><span class="p">,</span> <span class="n">ef</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">probe_fermi</span><span class="p">):</span>
+                <span class="n">conc</span><span class="p">[</span><span class="n">jj</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">trapz</span><span class="p">(</span><span class="n">fd</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ef</span><span class="p">,</span> <span class="n">tempr</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">dos</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">carriers</span><span class="o">=</span><span class="s2">&quot;holes&quot;</span><span class="p">),</span>
+                                    <span class="n">x</span><span class="o">=</span><span class="n">energy</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;holes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">probe_fermi</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s2">&quot;extrapolate&quot;</span><span class="p">)</span>
+
+        <span class="n">ef_h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;holes&quot;</span><span class="p">](</span><span class="n">dens</span><span class="p">)</span>
+        <span class="n">ef_el</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ef</span><span class="p">[</span><span class="n">tempr</span><span class="p">][</span><span class="s2">&quot;elec&quot;</span><span class="p">](</span><span class="n">dens</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="o">-</span><span class="n">ef_h</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="n">ef_el</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span></div>
+
+<div class="viewcode-block" id="BandStructure.plot"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.BandStructure.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kk</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">kk</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span> <span class="o">*</span> <span class="mf">7e9</span>
+
+        <span class="k">for</span> <span class="n">j1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_h</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_sb_e</span><span class="p">):</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">cond</span><span class="p">,</span> <span class="n">dip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">)</span>
+
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">val</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="n">cond</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="get_Fermi_levels_2D"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.get_Fermi_levels_2D">[docs]</a><span class="k">def</span> <span class="nf">get_Fermi_levels_2D</span><span class="p">(</span><span class="n">meff</span><span class="p">,</span> <span class="n">tempr</span><span class="p">,</span> <span class="n">dens</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes Fermi energy relative to the band edge</span>
+<span class="sd">    for 2D quantum gas of fermions in the parabolic band approximation</span>
+
+<span class="sd">    :param meff:    effective mass</span>
+<span class="sd">    :param tempr:   temperature</span>
+<span class="sd">    :param dens:    electron density</span>
+<span class="sd">    :return:        Fermi energy in eV relative to the band edge</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">betha</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">/</span> <span class="n">tempr</span>
+    <span class="n">aaa</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">*</span> <span class="n">betha</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">dens</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">h</span> <span class="o">/</span> <span class="n">meff</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">aaa</span><span class="p">)</span>
+    <span class="n">ef</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">kb</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">tempr</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">aaa</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ef</span></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+    <span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1e4</span><span class="p">,</span> <span class="mf">1e5</span><span class="p">,</span> <span class="mf">1e6</span><span class="p">,</span> <span class="mf">1e7</span><span class="p">,</span> <span class="mf">1e8</span><span class="p">,</span> <span class="mf">1e9</span><span class="p">,</span> <span class="mf">1e10</span><span class="p">,</span> <span class="mf">1e11</span><span class="p">,</span> <span class="mf">1e12</span><span class="p">,</span> <span class="mf">1e13</span><span class="p">,</span> <span class="mf">1e14</span><span class="p">,</span> <span class="mf">1e15</span><span class="p">,</span> <span class="mf">1e16</span><span class="p">,</span> <span class="mf">1e17</span><span class="p">,</span>
+                     <span class="mf">1e18</span><span class="p">,</span> <span class="mf">1e19</span><span class="p">,</span> <span class="mf">1e20</span><span class="p">,</span> <span class="mf">1e21</span><span class="p">,</span> <span class="mf">1e22</span><span class="p">,</span> <span class="mf">1e23</span><span class="p">,</span> <span class="mf">1e24</span><span class="p">,</span> <span class="mf">1e25</span><span class="p">])</span>
+    <span class="n">meff</span> <span class="o">=</span> <span class="n">GaAs</span><span class="p">()</span><span class="o">.</span><span class="n">me</span>
+    <span class="n">tempr</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">ef</span> <span class="o">=</span> <span class="n">get_Fermi_levels_2D</span><span class="p">(</span><span class="n">meff</span><span class="p">,</span> <span class="n">tempr</span><span class="p">,</span> <span class="n">conc</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">ef</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">ef</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructure3D</span><span class="p">(</span><span class="n">material</span><span class="o">=</span><span class="n">GaAs</span><span class="p">(),</span> <span class="n">edges_c</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">],</span> <span class="n">edges_v</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.1</span><span class="p">])</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1e11</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">_dipole</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">concentr</span> <span class="ow">in</span> <span class="n">conc</span><span class="p">:</span>
+        <span class="n">ef_h</span><span class="p">,</span> <span class="n">ef_el</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_Fermi_levels</span><span class="p">(</span><span class="n">tempr</span><span class="p">,</span> <span class="n">concentr</span><span class="p">)</span>
+        <span class="n">ef</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ef_el</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="mf">1.6e-19</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ef</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1.6e-19</span> <span class="o">-</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span> <span class="o">/</span> <span class="mf">1.6e-19</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="main1"><a class="viewcode-back" href="../../sbe.html#sbe.semiconductors.main1">[docs]</a><span class="k">def</span> <span class="nf">main1</span><span class="p">():</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructure</span><span class="p">(</span><span class="n">val_band</span><span class="o">=</span><span class="s1">&#39;/home/mk/perovsk_project/val_band.pkl&#39;</span><span class="p">,</span>
+                       <span class="n">cond_band</span><span class="o">=</span><span class="s1">&#39;/home/mk/perovsk_project/cond_band.pkl&#39;</span><span class="p">,</span>
+                       <span class="n">dipoles</span><span class="o">=</span><span class="s1">&#39;/home/mk/perovsk_project/dipoles.pkl&#39;</span><span class="p">)</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">4e9</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">vb</span><span class="p">,</span> <span class="n">cb</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">vb1</span><span class="p">,</span> <span class="n">cb1</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">vb2</span><span class="p">,</span> <span class="n">cb2</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">vb3</span><span class="p">,</span> <span class="n">cb3</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">vb</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">cb</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">vb1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">cb1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">vb2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">cb2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">vb3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">cb3</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

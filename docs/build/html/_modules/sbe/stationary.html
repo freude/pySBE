@@ -1,0 +1,226 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>sbe.stationary &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for sbe.stationary</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">sbe.int_matrix</span> <span class="k">import</span> <span class="n">int_matrix_2D</span> <span class="k">as</span> <span class="n">int_matrix</span>
+<span class="kn">from</span> <span class="nn">sbe.constants</span> <span class="k">import</span> <span class="n">h</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">m0</span><span class="p">,</span> <span class="n">kb</span><span class="p">,</span> <span class="n">eps0</span>
+<span class="kn">from</span> <span class="nn">sbe.int_matrix</span> <span class="k">import</span> <span class="n">exchange</span>
+
+
+<div class="viewcode-block" id="plasmon_pole"><a class="viewcode-back" href="../../sbe.html#sbe.stationary.plasmon_pole">[docs]</a><span class="k">def</span> <span class="nf">plasmon_pole</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">omega_pl</span><span class="p">):</span>
+
+    <span class="n">eps</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="p">(</span><span class="n">omega_pl</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">omega</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">damp</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="n">omega_pl</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">eps</span></div>
+
+
+<div class="viewcode-block" id="ksi0"><a class="viewcode-back" href="../../sbe.html#sbe.stationary.ksi0">[docs]</a><span class="k">def</span> <span class="nf">ksi0</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Zero-order electric susceptibility</span>
+
+<span class="sd">    :param freq_array:</span>
+<span class="sd">    :param omega:</span>
+<span class="sd">    :param nh:</span>
+<span class="sd">    :param ne:</span>
+<span class="sd">    :param damp:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">energy</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">omega</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">energy</span><span class="p">):</span>
+            <span class="n">ans</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">ne</span> <span class="o">-</span> <span class="n">nh</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">energy</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">damp</span> <span class="o">-</span> <span class="n">h</span> <span class="o">*</span> <span class="n">omega</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ans</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">ne</span> <span class="o">-</span> <span class="n">nh</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">energy</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">damp</span> <span class="o">-</span> <span class="n">h</span> <span class="o">*</span> <span class="n">omega</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="vertex"><a class="viewcode-back" href="../../sbe.html#sbe.stationary.vertex">[docs]</a><span class="k">def</span> <span class="nf">vertex</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">measure</span><span class="p">):</span>
+
+    <span class="n">ans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">energy</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">omega</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">en</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">energy</span><span class="p">):</span>
+
+        <span class="n">ksi</span> <span class="o">=</span> <span class="n">ksi0</span><span class="p">(</span><span class="n">en</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">)</span>
+
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">ksi</span><span class="p">)</span> <span class="o">-</span> <span class="n">V</span> <span class="o">*</span> <span class="n">measure</span>
+        <span class="n">ans</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="p">)</span> <span class="o">@</span> <span class="n">mu</span>
+        <span class="c1"># ans[j, :] = scipy.linalg.solve(M, mu.T)</span>
+
+    <span class="k">return</span> <span class="n">ans</span></div>
+
+
+<div class="viewcode-block" id="polarization"><a class="viewcode-back" href="../../sbe.html#sbe.stationary.polarization">[docs]</a><span class="k">def</span> <span class="nf">polarization</span><span class="p">(</span><span class="n">fff</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">bs</span><span class="p">,</span> <span class="n">Ef_h</span><span class="p">,</span> <span class="n">Ef_e</span><span class="p">,</span> <span class="n">Tempr</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">VV1</span><span class="p">,</span> <span class="n">VV2</span><span class="p">):</span>
+
+    <span class="c1"># ----------------------- parse inputs -----------------------</span>
+
+    <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">Eh</span> <span class="o">=</span> <span class="n">bs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">h</span>
+    <span class="n">Ee</span> <span class="o">=</span> <span class="n">bs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">h</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bs</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+    <span class="c1"># mu = mu - mu + mu[0]</span>
+
+    <span class="n">stk</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="n">k</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>   <span class="c1"># step in the k-space grid</span>
+
+    <span class="n">eps</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">eps</span>
+    <span class="n">n_reff</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">n_reff</span>
+
+    <span class="c1"># ------------------------------------------------------------</span>
+
+    <span class="n">damp</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="o">*</span> <span class="n">e</span>  <span class="c1"># damping</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">Ee</span> <span class="o">-</span> <span class="n">Eh</span>
+
+    <span class="c1"># ----------------- Distribution functions -------------------</span>
+
+    <span class="n">ne</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">Ee</span> <span class="o">*</span> <span class="n">h</span> <span class="o">-</span> <span class="n">Ef_e</span><span class="p">)</span> <span class="o">/</span> <span class="n">kb</span> <span class="o">/</span> <span class="n">Tempr</span><span class="p">))</span>
+    <span class="n">nh</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">Eh</span> <span class="o">*</span> <span class="n">h</span> <span class="o">-</span> <span class="n">Ef_h</span><span class="p">)</span> <span class="o">/</span> <span class="n">kb</span> <span class="o">/</span> <span class="n">Tempr</span><span class="p">))</span>
+
+    <span class="c1"># --------------------------- Exchange energy ----------------</span>
+
+    <span class="c1"># exce = exchange(k, ne, nh, V)</span>
+    <span class="c1"># omega -= exce</span>
+
+    <span class="n">aaa</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="p">))</span><span class="o">*</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">aaa1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="p">))</span> <span class="o">/</span> <span class="mi">3</span><span class="p">))</span>
+
+    <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="c1"># epsilon = plasmon_pole(0, omega[0], damp / h, omega[0]) * 2e-3</span>
+    <span class="c1"># print(epsilon)</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">V</span> <span class="o">*</span> <span class="n">epsilon</span>
+
+    <span class="n">M</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">(</span><span class="n">fff</span><span class="o">*</span><span class="n">h</span><span class="p">,</span> <span class="n">omega</span> <span class="o">-</span> <span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">measure</span><span class="o">=</span><span class="n">stk</span><span class="p">)</span>
+    <span class="c1"># p = np.imag(np.sum(M * np.tile(k ** 2, (len(fff), 1)), axis=1))</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">M</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">mu</span> <span class="o">*</span> <span class="n">aaa</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">fff</span><span class="p">),</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">stk</span>
+    <span class="c1"># p = np.imag(np.sum(M, axis=1)) * stk</span>
+    <span class="k">return</span> <span class="n">p</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">eps0</span> <span class="o">*</span> <span class="n">eps</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+
+    <span class="n">l_k</span> <span class="o">=</span> <span class="mi">500</span>
+    <span class="n">wave_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.0e9</span><span class="p">,</span> <span class="n">l_k</span><span class="p">)</span>
+    <span class="n">stk</span> <span class="o">=</span> <span class="n">wave_vector</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">wave_vector</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">energy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">l_k</span><span class="p">)</span> <span class="o">*</span> <span class="n">e</span>
+
+    <span class="n">omega</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">e</span> <span class="o">/</span> <span class="n">h</span> <span class="o">+</span> <span class="n">h</span><span class="o">*</span><span class="p">(</span><span class="n">wave_vector</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">m0</span> <span class="o">/</span> <span class="mf">0.5</span>
+
+    <span class="n">ne</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">nh</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">damp</span> <span class="o">=</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="n">e</span>
+
+    <span class="c1"># V = int_matrix(wave_vector, 12)</span>
+    <span class="n">VV1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1e9</span> <span class="o">**</span> <span class="mi">2</span>
+
+    <span class="kn">from</span> <span class="nn">sbe.c</span> <span class="k">import</span> <span class="n">gen_pot</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">gen_pot</span><span class="p">(</span><span class="n">wave_vector</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mf">1e9</span><span class="p">,</span> <span class="mf">2e9</span><span class="p">,</span> <span class="mf">1e9</span><span class="p">,</span> <span class="mf">2e9</span><span class="p">)</span> <span class="o">/</span> <span class="n">VV1</span><span class="o">*</span><span class="mi">2</span>
+    <span class="c1">#V=np.zeros((len(wave_vector), len(wave_vector)))</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">contourf</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">ksi</span> <span class="o">=</span> <span class="n">ksi0</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">omega</span> <span class="o">-</span> <span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">contourf</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">ksi</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">ksi</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">wave_vector</span> <span class="o">-</span> <span class="n">wave_vector</span> <span class="o">+</span> <span class="mf">1.0</span>
+
+    <span class="n">M</span> <span class="o">=</span> <span class="n">vertex</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">omega</span> <span class="o">-</span> <span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nh</span><span class="p">,</span> <span class="n">ne</span><span class="p">,</span> <span class="n">damp</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">measure</span><span class="o">=</span><span class="n">stk</span><span class="p">)</span>
+
+    <span class="c1"># plt.contourf(np.abs(M))</span>
+    <span class="c1"># plt.show()</span>
+    <span class="c1"># plt.plot(p)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">M</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">energy</span><span class="p">),</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

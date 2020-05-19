@@ -1,0 +1,270 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>apps.app &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apps.app</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot; Shows how to use flask and matplotlib together.</span>
+
+<span class="sd">Shows SVG, and png.</span>
+<span class="sd">The SVG is easier to style with CSS, and hook JS events to in browser.</span>
+
+<span class="sd">python3 -m venv venv</span>
+<span class="sd">. ./venv/bin/activate</span>
+<span class="sd">pip install flask matplotlib</span>
+<span class="sd">python flask_matplotlib.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">flask</span> <span class="k">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">Response</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">redirect</span>
+<span class="kn">from</span> <span class="nn">matplotlib.backends.backend_agg</span> <span class="k">import</span> <span class="n">FigureCanvasAgg</span>
+<span class="kn">from</span> <span class="nn">matplotlib.backends.backend_svg</span> <span class="k">import</span> <span class="n">FigureCanvasSVG</span>
+
+<span class="kn">from</span> <span class="nn">matplotlib.figure</span> <span class="k">import</span> <span class="n">Figure</span>
+<span class="kn">from</span> <span class="nn">wtforms</span> <span class="k">import</span> <span class="n">Form</span><span class="p">,</span> <span class="n">StringField</span><span class="p">,</span> <span class="n">TextAreaField</span><span class="p">,</span> <span class="n">BooleanField</span>
+<span class="kn">from</span> <span class="nn">flask_socketio</span> <span class="k">import</span> <span class="n">SocketIO</span><span class="p">,</span> <span class="n">emit</span>
+
+<span class="kn">from</span> <span class="nn">scripts.absorption_gaas</span> <span class="k">import</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">mat_file</span>
+<span class="kn">from</span> <span class="nn">sbe.aux_functions</span> <span class="k">import</span> <span class="n">yaml_parser</span>
+<span class="kn">from</span> <span class="nn">scripts.absorption_gaas</span> <span class="k">import</span> <span class="n">absorption</span>
+<span class="kn">from</span> <span class="nn">sbe.semiconductors</span> <span class="k">import</span> <span class="n">GaAs</span><span class="p">,</span> <span class="n">BandStructure3D</span><span class="p">,</span> <span class="n">SemicondYAML</span>
+
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;secret!&#39;</span>
+<span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+<span class="k">global</span> <span class="n">fig</span>
+
+<div class="viewcode-block" id="MyForm"><a class="viewcode-back" href="../../apps.html#apps.app.MyForm">[docs]</a><span class="k">class</span> <span class="nc">MyForm</span><span class="p">(</span><span class="n">Form</span><span class="p">):</span>
+    <span class="n">checkbox</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">TextAreaField</span><span class="p">(</span><span class="s1">&#39;Config file&#39;</span><span class="p">,</span> <span class="n">render_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;rows&quot;</span><span class="p">:</span> <span class="mi">35</span><span class="p">,</span> <span class="s2">&quot;cols&quot;</span><span class="p">:</span> <span class="mi">70</span><span class="p">})</span>
+    <span class="n">mat_param</span> <span class="o">=</span> <span class="n">TextAreaField</span><span class="p">(</span><span class="s1">&#39;Material parameters&#39;</span><span class="p">,</span> <span class="n">render_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;rows&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="s2">&quot;cols&quot;</span><span class="p">:</span> <span class="mi">70</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="index"><a class="viewcode-back" href="../../apps.html#apps.app.index">[docs]</a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">index</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; Returns html with the img tag for your plot.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">form</span> <span class="o">=</span> <span class="n">MyForm</span><span class="p">()</span>
+
+    <span class="n">num_x_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_x_points&quot;</span><span class="p">,</span> <span class="mi">50</span><span class="p">))</span>
+    <span class="c1"># in a real app you probably want to use a flask template.</span>
+    <span class="n">form</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">config_file</span>
+    <span class="n">form</span><span class="o">.</span><span class="n">mat_param</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">mat_file</span>
+
+    <span class="c1"># return render_template(&quot;index.html&quot;, num_x_points=num_x_points, form=form, status=&quot;Ready&quot;)</span>
+    <span class="kn">from</span> <span class="nn">bokeh.embed</span> <span class="k">import</span> <span class="n">components</span>
+    <span class="kn">from</span> <span class="nn">bokeh.resources</span> <span class="k">import</span> <span class="n">INLINE</span>
+
+    <span class="c1"># grab the static resources</span>
+    <span class="n">js_resources</span> <span class="o">=</span> <span class="n">INLINE</span><span class="o">.</span><span class="n">render_js</span><span class="p">()</span>
+    <span class="n">css_resources</span> <span class="o">=</span> <span class="n">INLINE</span><span class="o">.</span><span class="n">render_css</span><span class="p">()</span>
+
+    <span class="c1"># render template</span>
+    <span class="n">script</span><span class="p">,</span> <span class="n">div</span> <span class="o">=</span> <span class="n">components</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+    <span class="n">html</span> <span class="o">=</span> <span class="n">render_template</span><span class="p">(</span>
+        <span class="s1">&#39;index.html&#39;</span><span class="p">,</span>
+        <span class="n">plot_script</span><span class="o">=</span><span class="n">script</span><span class="p">,</span>
+        <span class="n">plot_div</span><span class="o">=</span><span class="n">div</span><span class="p">,</span>
+        <span class="n">js_resources</span><span class="o">=</span><span class="n">js_resources</span><span class="p">,</span>
+        <span class="n">css_resources</span><span class="o">=</span><span class="n">css_resources</span><span class="p">,</span>
+        <span class="n">num_x_points</span> <span class="o">=</span> <span class="n">num_x_points</span><span class="p">,</span> <span class="n">form</span> <span class="o">=</span> <span class="n">form</span><span class="p">,</span> <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;Ready&quot;</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">html</span></div>
+
+<div class="viewcode-block" id="save"><a class="viewcode-back" href="../../apps.html#apps.app.save">[docs]</a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/save&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">save</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; Returns html with the img tag for your plot.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span></div>
+
+
+<span class="c1"># @app.route(&quot;/matplot-as-image-&lt;int:num_x_points&gt;.png&quot;)</span>
+<span class="c1"># def plot_png(num_x_points=50):</span>
+<span class="c1">#     &quot;&quot;&quot; renders the plot on the fly.</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     # fig = Figure()</span>
+<span class="c1">#     # axis = fig.add_subplot(1, 1, 1)</span>
+<span class="c1">#     # x_points = range(num_x_points)</span>
+<span class="c1">#     # axis.plot(x_points, [random.randint(1, 30) for x in x_points])</span>
+<span class="c1">#</span>
+<span class="c1">#     output = io.BytesIO()</span>
+<span class="c1">#     FigureCanvasAgg(fig).print_png(output)</span>
+<span class="c1">#     return Response(output.getvalue(), mimetype=&quot;image/png&quot;)</span>
+
+<div class="viewcode-block" id="plot_png"><a class="viewcode-back" href="../../apps.html#apps.app.plot_png">[docs]</a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/matplot-as-image-&lt;int:num_x_points&gt;.png&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">plot_png</span><span class="p">(</span><span class="n">num_x_points</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; renders the plot on the fly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># fig = Figure()</span>
+    <span class="c1"># axis = fig.add_subplot(1, 1, 1)</span>
+    <span class="c1"># x_points = range(num_x_points)</span>
+    <span class="c1"># axis.plot(x_points, [random.randint(1, 30) for x in x_points])</span>
+
+    <span class="kn">from</span> <span class="nn">bokeh.embed</span> <span class="k">import</span> <span class="n">components</span>
+    <span class="kn">from</span> <span class="nn">bokeh.resources</span> <span class="k">import</span> <span class="n">INLINE</span>
+
+    <span class="c1"># grab the static resources</span>
+    <span class="n">js_resources</span> <span class="o">=</span> <span class="n">INLINE</span><span class="o">.</span><span class="n">render_js</span><span class="p">()</span>
+    <span class="n">css_resources</span> <span class="o">=</span> <span class="n">INLINE</span><span class="o">.</span><span class="n">render_css</span><span class="p">()</span>
+
+    <span class="c1"># render template</span>
+    <span class="n">script</span><span class="p">,</span> <span class="n">div</span> <span class="o">=</span> <span class="n">components</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+    <span class="n">html</span> <span class="o">=</span> <span class="n">render_template</span><span class="p">(</span>
+        <span class="s1">&#39;index.html&#39;</span><span class="p">,</span>
+        <span class="n">plot_script</span><span class="o">=</span><span class="n">script</span><span class="p">,</span>
+        <span class="n">plot_div</span><span class="o">=</span><span class="n">div</span><span class="p">,</span>
+        <span class="n">js_resources</span><span class="o">=</span><span class="n">js_resources</span><span class="p">,</span>
+        <span class="n">css_resources</span><span class="o">=</span><span class="n">css_resources</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">html</span></div>
+
+<span class="c1"># @app.route(&quot;/matplot-as-image-&lt;int:num_x_points&gt;.svg&quot;)</span>
+<span class="c1"># def plot_svg(num_x_points=50):</span>
+<span class="c1">#     &quot;&quot;&quot; renders the plot on the fly.</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     # fig = Figure()</span>
+<span class="c1">#     # axis = fig.add_subplot(1, 1, 1)</span>
+<span class="c1">#     # x_points = range(num_x_points)</span>
+<span class="c1">#     # axis.plot(x_points, [random.randint(1, 30) for x in x_points])</span>
+<span class="c1">#</span>
+<span class="c1">#     output = io.BytesIO()</span>
+<span class="c1">#     FigureCanvasSVG(fig).print_svg(output)</span>
+<span class="c1">#     return Response(output.getvalue(), mimetype=&quot;image/svg+xml&quot;)</span>
+
+
+<div class="viewcode-block" id="handle_my_custom_event"><a class="viewcode-back" href="../../apps.html#apps.app.handle_my_custom_event">[docs]</a><span class="nd">@socketio</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">&#39;long-running-event&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">handle_my_custom_event</span><span class="p">(</span><span class="n">input_json</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="n">yaml_parser</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+    <span class="n">gaas</span> <span class="o">=</span> <span class="n">GaAs</span><span class="p">()</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructure3D</span><span class="p">(</span><span class="n">material</span><span class="o">=</span><span class="n">gaas</span><span class="p">)</span>
+    <span class="n">energy</span><span class="p">,</span> <span class="n">ans</span> <span class="o">=</span> <span class="n">absorption</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="n">emit</span><span class="p">(</span><span class="s1">&#39;processing-finished&#39;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="s1">&#39;finished processing!&#39;</span><span class="p">}))</span></div>
+
+
+<div class="viewcode-block" id="run_engine"><a class="viewcode-back" href="../../apps.html#apps.app.run_engine">[docs]</a><span class="k">def</span> <span class="nf">run_engine</span><span class="p">():</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="n">yaml_parser</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+    <span class="n">mat_params</span> <span class="o">=</span> <span class="n">yaml_parser</span><span class="p">(</span><span class="n">mat_file</span><span class="p">)</span>
+
+    <span class="n">mat</span> <span class="o">=</span> <span class="n">SemicondYAML</span><span class="p">(</span><span class="o">**</span><span class="n">mat_params</span><span class="p">)</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructure3D</span><span class="p">(</span><span class="n">material</span><span class="o">=</span><span class="n">mat</span><span class="p">)</span>
+    <span class="n">energy</span><span class="p">,</span> <span class="n">ans</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">absorption</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">apps.graphics</span> <span class="k">import</span> <span class="n">make_fig</span>
+
+    <span class="c1"># import pickle</span>
+    <span class="c1">#</span>
+    <span class="c1"># with open(&#39;data.pkl&#39;, &#39;rb&#39;) as infile:</span>
+    <span class="c1">#     data = pickle.load(infile)</span>
+
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_fig</span><span class="p">(</span><span class="o">*</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+    <span class="kn">import</span> <span class="nn">json</span>
+    <span class="kn">from</span> <span class="nn">bokeh.io.doc</span> <span class="k">import</span> <span class="n">curdoc</span>
+    <span class="kn">from</span> <span class="nn">bokeh.document</span> <span class="k">import</span> <span class="n">Document</span>
+
+    <span class="k">global</span> <span class="n">fig</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">run_engine</span><span class="p">()</span>
+
+    <span class="kn">import</span> <span class="nn">webbrowser</span>
+
+    <span class="n">webbrowser</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:5000/&quot;</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_reloader</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

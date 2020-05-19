@@ -9,6 +9,28 @@ import sbe.fft_loop as fft_f2py_loop
 
 def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug):
 
+    """ Calculates the evolution of polarization and charge densities with time
+    
+    :param [ParamName]: [ParamDescription], defaults to [DefaultParamVal]
+    :type [ParamName]: [ParamType](, optional)
+    :param fff: frequency array,
+    :type fff: array
+    :param bs: Bandstructure details
+    :type bs: class 
+    :param Ef_h: Fermi level of holes
+    :type Ef_h: constant
+    :param Ef_e: Fermi level of electrons
+    :type Ef_e: constant
+    :param Tempr: Fermi level of electrons
+    :type Tempr: constant
+    :param V: Potential
+    :type V: array
+    :param damp: damping coefficient
+    :type damp: constant
+    :param E_field: Electric field as a function of time of the incident pulse
+    :type E_field: array
+    :return: Polarization and figure of the evolution quantities
+    """
     # ----------------------- parse inputs -----------------------
 
     k = np.array(bs[0])
@@ -110,6 +132,8 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, puls
 
 
 def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug):
+
+
 
     # ----------------------- parse inputs -----------------------
 
