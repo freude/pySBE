@@ -48,6 +48,34 @@ def vertex(energy, omega, nh, ne, damp, mu, V, measure):
     return ans
 
 
+def vertex1(fr, dim, params, bs, Ef_h, Ef_e, Tempr, V, stk):
+
+    # ----------------------- parse inputs -----------------------
+
+    Eh = bs[1] / h
+    Ee = bs[2] / h
+
+    eps = params.eps
+    n_reff = params.n_reff
+
+    # ------------------------------------------------------------
+
+    damp = 0.05 * e  # damping
+    omega = Ee - Eh
+
+    # ----------------- Distribution functions -------------------
+
+    ne = 1.0 / (1 + np.exp((Ee * h - Ef_e) / kb / Tempr))
+    nh = 1.0 / (1 + np.exp(-(Eh * h - Ef_h) / kb / Tempr))
+
+    epsilon = 1.0
+    V = V * epsilon
+    ksi = ksi0(fr*h, omega, nh, ne, damp)
+    M = np.diag(1.0 / ksi) - V * stk
+
+    return M
+
+
 def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, VV1, VV2):
 
     # ----------------------- parse inputs -----------------------
@@ -86,9 +114,9 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, VV1, VV2):
     # print(epsilon)
     V = V * epsilon
 
-    M = vertex(fff*h, omega - omega[0], nh, ne, damp, mu, V, measure=stk)
+    M = vertex(fff*h, omega - omega[0], nh, ne, damp, mu , V, measure=stk)
     # p = np.imag(np.sum(M * np.tile(k ** 2, (len(fff), 1)), axis=1))
-    p = 1.0 + 4 * np.pi * np.sum(M * np.tile(mu * aaa, (len(fff), 1)), axis=1) * stk
+    p = 1.0 + 4 * np.pi * np.sum(M * np.tile(mu, (len(fff), 1)), axis=1) * stk
     # p = np.imag(np.sum(M, axis=1)) * stk
     return p / (4.0 * np.pi * eps0 * eps)
 

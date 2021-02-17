@@ -10,7 +10,7 @@ import sbe.constants as const
 
 
 config_file = """verbosity:  True
-damp:      0.003    # dephasing factor in eV
+damp:       0.01    # dephasing factor in eV
 
 # ---------------- k grids ------------------
 
@@ -19,7 +19,7 @@ k_max:    1.0e+9    # k-vector cutoff
 
 # ------------- frequency array -------------
 
-l_f:         400    # number of points in the frequency array
+l_f:         700    # number of points in the frequency array
 f_min:       0.7    # frequency array limits in units of the band gap
 f_max:       1.1    # frequency array limits in units of the band gap
 
@@ -32,7 +32,7 @@ conc:    5.0e+14    # carrier concentration
 
 pulse_width:  1.0   # pulse width in femtoseconds
 pulse_delay:  100   # pulse delay in the units of the pulse width
-pulse_amp: 5.e+1   # amplitude
+pulse_amp:  5.e-2   # amplitude
 e_phot:         0   # photon energy in the units of the fundamental band gap
 
 # ----------- data management ---------------
@@ -68,7 +68,7 @@ betha:     204      # meV
 """
 
 
-def absorption(bs, **kwargs):
+def absorption(bs, cc=True, **kwargs):
     """
     Computes absorption spectra
 
@@ -113,8 +113,10 @@ def absorption(bs, **kwargs):
     logging.info('Fermi levels are: Ef_h = ' + str(Ef_h / e) + ' eV' + ' and Ef_e = ' + str(Ef_e / e) + ' eV')
 
     # V = 0.5e-29*int_matrix(wave_vector, bs.mat.eps, dim=dim)
-    V = int_matrix(wave_vector, bs.mat.eps, dim=bs.dim)
-    # V = np.zeros((l_k, l_k))
+    if cc:
+        V = int_matrix(wave_vector, bs.mat.eps, dim=bs.dim)
+    else:
+        V = np.zeros((l_k, l_k))
 
     def e_field(t):
         # pulse_widths = 0.01e-14
@@ -193,9 +195,17 @@ def main2D():
 
     gaas = GaAs()
     bs = BandStructureQW(material=gaas)
-    energy, ans = absorption(bs, **params)
+    energy, ans, _ = absorption(bs, **params)
+    energy, ans1, fig = absorption(bs, cc=False, **params)
 
-    plt.plot(energy, ans)
+    plt.plot((energy - gaas.Eg/e)/gaas.E_0*e, ans / np.max(ans), 'k')
+    plt.plot((energy - gaas.Eg/e)/gaas.E_0*e, ans1 / np.max(ans), 'k--')
+    plt.xlim([-20, 20])
+    # plt.xlim([1.4, 1.7])
+    # plt.ylim([0, 1.4])
+    plt.xlabel(r'(E-E$_g$)/E$_0$ (a.u.)', fontsize=14)
+    plt.ylabel('Absorption (a.u.)', fontsize=14)
+    plt.show()
 
 
 def main3D():
@@ -204,8 +214,15 @@ def main3D():
     gaas = GaAs()
     bs = BandStructure3D(material=gaas)
     energy, ans, fig = absorption(bs, **params)
+    energy, ans1, fig = absorption(bs, cc=False, **params)
 
-    # plt.plot(energy, ans)
+    plt.plot((energy - gaas.Eg/e)/gaas.E_0*e, ans / np.max(ans), 'k')
+    plt.plot((energy - gaas.Eg/e)/gaas.E_0*e, ans1 / np.max(ans), 'k--')
+    plt.xlim([-20, 20])
+    # plt.xlim([1.4, 1.7])
+    # plt.ylim([0, 1.4])
+    plt.xlabel(r'(E-E$_g$)/E$_0$ (a.u.)', fontsize=14)
+    plt.ylabel('Absorption (a.u.)', fontsize=14)
     plt.show()
 
 

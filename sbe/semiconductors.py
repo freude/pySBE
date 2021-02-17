@@ -409,7 +409,7 @@ class BandStructure(object):
         if j2 >= self.n_sb_e:
             raise ValueError("Band index exceeds maximal value")
 
-        return (self.dipoles[j1][j2](k)) * 1e-31 + 0*np.ones(k.shape) * 1e-29
+        return (self.dipoles[j1][j2](k)) * 1e-31
 
     def get_optical_transition_data(self, kk, j1, j2):
         return kk, self._val_band(j1, kk), self._cond_band(j2, kk), self._dipole(j1, j2, kk)
@@ -465,8 +465,8 @@ class BandStructure(object):
             for j2 in range(self.n_sb_e):
                 _, val, cond, dip = self.get_optical_transition_data(kk, j1, j2)
 
-                plt.plot(kk, val / const.e)
-                plt.plot(kk, cond / const.e)
+                plt.plot(np.linalg.norm(kk, axis=1), val / const.e)
+                plt.plot(np.linalg.norm(kk, axis=1), cond / const.e)
 
         plt.show()
 
