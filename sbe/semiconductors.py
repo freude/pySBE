@@ -313,13 +313,13 @@ class BandStructure3D(BandStructure, object):
         plt.show()
 
 
-class BandStructureQW(BandStructure3D, object):
+class BandStructure2D(BandStructure3D, object):
     """
     Parabolic band approximation
     """
 
     def __init__(self, **kwargs):
-        super(BandStructureQW, self).__init__(**kwargs)
+        super(BandStructure2D, self).__init__(**kwargs)
         self.dim = 2
 
 
@@ -360,27 +360,35 @@ def _dos_single_subband(energy, meff, dim=3, units='eV'):
     return dos
 
 
+def get_list(obj):
+
+    if isinstance(obj, list):
+        return obj
+    elif isinstance(obj, str):
+        if os.path.getsize(obj) > 0:
+            with open(obj, 'rb') as file:
+                ans = pickle.load(obj)
+            return ans
+    else:
+        raise ValueError('Wrong band structure data')
+
+
 class BandStructure(object):
     """
-    Parabolic band approximation
+    Object containing the information on the band structure
     """
 
-    def __init__(self, mat, **kwargs):
+    def __init__(self, mat=None, **kwargs):
 
         self.mat = mat
         self.dim = kwargs.get('dim', 1)
         val_file = kwargs.get('val_band', None)
         cond_file = kwargs.get('cond_band', None)
         dipoles_file = kwargs.get('dipoles', None)
-        if os.path.getsize(val_file) > 0:
-            with open(val_file, 'rb') as file:
-                self.val_bands = pickle.load(file)
-        if os.path.getsize(cond_file) > 0:
-            with open(cond_file, 'rb') as file:
-                self.cond_bands = pickle.load(file)
-        if os.path.getsize(dipoles_file) > 0:
-            with open(dipoles_file, 'rb') as file:
-                self.dipoles = pickle.load(file)
+
+        self.val_bands = get_list(val_file)
+        self.cond_bands = get_list(cond_file)
+        self.dipoles = get_list(dipoles_file)
 
         self.n_sb_e = len(self.cond_bands)
         self.n_sb_h = len(self.val_bands)
@@ -465,8 +473,8 @@ class BandStructure(object):
             for j2 in range(self.n_sb_e):
                 _, val, cond, dip = self.get_optical_transition_data(kk, j1, j2)
 
-                plt.plot(np.linalg.norm(kk, axis=1), val / const.e)
-                plt.plot(np.linalg.norm(kk, axis=1), cond / const.e)
+                plt.plot(kk, val / const.e)
+                plt.plot(kk, cond / const.e)
 
         plt.show()
 
@@ -539,4 +547,4 @@ def main1():
 
 
 if __name__ == '__main__':
-    main()
+    main1()

@@ -140,7 +140,7 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
             else if (dim == 1) then
                 P(j2) = P(j2) + 1.0 / 3.1416 * mu(j1) * pp(j2, j1) * stk
             else
-                P(j2) = 0
+                P(j2) =  P(j2) + 1.0 / 3.1416 * mu(j1) * pp(j2, j1) * stk * sqrt(k(j1))
             end if
 
             !------------------- electron density --------------------
@@ -153,36 +153,6 @@ Subroutine loop(dim, l_t, l_k, t, k, stt, stk, omega, PEg, exce, ne, nh, &
 
         End Do
     End Do
-
-
-    ! Write the required arrays to drive
-    ! The real and imaginary parts are written separately.
-    ! This makes reading in python easier.
-
-!    Open(unit = 30, file = 'pp_real', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(30) Real(pp)
-!    Close(30)
-!
-!    Open(unit = 31, file = 'pp_imag', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(31) Imag(pp)
-!    Close(31)
-
-!    Open(unit = 20, file = 'P_real', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(20) real(P)
-!    Close(20)
-!
-!    Open(unit = 21, file = 'P_imag', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(21) imag(P)
-!    Close(21)
-
-!    Open(unit = 51, file = 'ne', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(51) ne_k
-!    Close(51)
-!
-!    Open(unit = 53, file = 'nh', form = "unformatted", access = 'stream', status = 'replace')
-!    Write(53) nh_k
-!    Close(53)
-
     return
 End Subroutine loop
 
