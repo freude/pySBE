@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from sbe.constants import h, e
 from sbe.int_matrix import int_matrix
 from sbe.Pol_FFT_f2py import polarization_app
-from sbe.semiconductors import BandStructureQW, BandStructure3D, GaAs
+from sbe.semiconductors import BandStructure2D, BandStructure3D, GaAs
 from sbe.aux_functions import yaml_parser
 import sbe.constants as const
 
 
 config_file = """verbosity:  True
-damp:       0.01    # dephasing factor in eV
+damp:       0.003    # dephasing factor in eV
 
 # ---------------- k grids ------------------
 
@@ -19,20 +19,20 @@ k_max:    1.0e+9    # k-vector cutoff
 
 # ------------- frequency array -------------
 
-l_f:         700    # number of points in the frequency array
-f_min:       0.7    # frequency array limits in units of the band gap
-f_max:       1.1    # frequency array limits in units of the band gap
+l_f:         2000    # number of points in the frequency array
+f_min:       1.45    # frequency array limits in units of the band gap
+f_max:       1.6    # frequency array limits in units of the band gap
 
 # --------- environment parameters ----------
 
 tempr:         1    # temperature in K 
-conc:    5.0e+14    # carrier concentration
+conc:    1.0e+14    # carrier concentration
 
 # --------- external field parameters -------
 
-pulse_width:  1.0   # pulse width in femtoseconds
+pulse_width:  5.0   # pulse width in femtoseconds
 pulse_delay:  100   # pulse delay in the units of the pulse width
-pulse_amp:  5.e-2   # amplitude
+pulse_amp:  5.e-5   # amplitude
 e_phot:         0   # photon energy in the units of the fundamental band gap
 
 # ----------- data management ---------------
@@ -80,29 +80,29 @@ def absorption(bs, cc=True, **kwargs):
     dim = bs.dim
 
     # -------------------- arrays definition ---------------------
-    verbosity = kwargs.get('verbosity')
-    damp = kwargs.get('damp') * const.e   # damping
+    verbosity = kwargs.get('verbosity', 1)
+    damp = kwargs.get('damp', 0.005) * const.e   # damping
     l_k = kwargs.get('l_k')  # length of k array
-    l_f = kwargs.get('l_f')  # length of frequency array
-    Tempr = kwargs.get('tempr')
+    l_f = kwargs.get('l_f', 100)  # length of frequency array
+    Tempr = kwargs.get('tempr', 15)
     conc = kwargs.get('conc')
-    k_max = kwargs.get('k_max')
-    f_min = kwargs.get('f_min')
-    f_max = kwargs.get('f_max')
-    pulse_width = kwargs.get('pulse_width')
-    pulse_delay = kwargs.get('pulse_delay')
-    pulse_amp = kwargs.get('pulse_amp')
-    e_phot = kwargs.get('e_phot')
+    k_max = kwargs.get('k_max', 1e9)
+    f_min = kwargs.get('f_min', 0) * const.e
+    f_max = kwargs.get('f_max', 0.5) * const.e
+    pulse_width = kwargs.get('pulse_width', 1.0)
+    pulse_delay = kwargs.get('pulse_delay', 100)
+    pulse_amp = kwargs.get('pulse_amp', 1e2)
+    e_phot = kwargs.get('e_phot', 0)
     pulse_widths = 1e-15 * pulse_width
     pulse_delay = pulse_delay * pulse_widths
     e_phot = e_phot * bs.mat.Eg
-    scratch = kwargs.get('scratch')
-    save = kwargs.get('save')
+    scratch = kwargs.get('scratch', 0)
+    save = kwargs.get('save', 0)
 
     # ------------------------------------------------------------
 
     wave_vector = np.linspace(0, k_max, l_k)
-    freq_array = np.linspace(f_min * bs.mat.Eg, f_max * bs.mat.Eg, l_f) - bs.mat.Eg
+    freq_array = np.linspace(f_min, f_max, l_f) - bs.mat.Eg
     freq_array = freq_array / h
 
     # ------------------------------------------------------------
@@ -194,7 +194,7 @@ def main2D():
     params = yaml_parser(config_file)
 
     gaas = GaAs()
-    bs = BandStructureQW(material=gaas)
+    bs = BandStructure2D(material=gaas)
     energy, ans, _ = absorption(bs, **params)
     energy, ans1, fig = absorption(bs, cc=False, **params)
 

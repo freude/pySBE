@@ -8,16 +8,26 @@ class BandStructure(ABC):
 
     @abstractmethod
     def _cond_band(self, j, k, units='eV'):
-        return k - k
+        raise NotImplementedError
 
     @abstractmethod
     def _val_band(self, j, k, units='eV'):
-        return k - k
+        raise NotImplementedError
 
     @abstractmethod
     def _dipole(self, j1, j2, k, units='eV'):
-        return k - k
+        raise NotImplementedError
 
     @abstractmethod
     def get_optical_transition_data(self, kk, j1, j2):
-        return kk, kk - kk, kk - kk, kk - kk
+        raise NotImplementedError
+
+
+class AbstractPolarization(ABC):
+    """
+    Abstract class for the polarization
+    """
+
+    @abstractmethod
+    def comp(self):
+        raise NotImplementedError

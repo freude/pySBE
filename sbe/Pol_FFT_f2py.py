@@ -5,6 +5,7 @@ import sbe.constants as const
 from sbe.int_matrix import exchange
 import sbe.P_loop as P_f2py_loop
 import sbe.fft_loop as fft_f2py_loop
+import sbe.oscillators as osc
 
 
 def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug):
@@ -49,7 +50,7 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, puls
     # -------------------------- time ----------------------------
 
     t_min = 0.0  # min time
-    t_max = 0.1e-11  # max time
+    t_max = 3e-13  # max time
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
 
@@ -144,7 +145,7 @@ def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, 
 
     l_k = np.size(k)    # length of k array
     l_f = np.size(fff)  # length of frequency array
-    l_t = 10000          # length of time array
+    l_t = 15000          # length of time array
     stk = k[4] - k[3]   # step in the k-space grid
 
     eps = params.eps
@@ -153,7 +154,7 @@ def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, 
     # -------------------------- time ----------------------------
 
     t_min = 0.0  # min time
-    t_max = 0.1e-11  # max time
+    t_max = 0.3e-11  # max time
     t = np.linspace(t_min, t_max, l_t)
     stt = t[3] - t[2]
 
@@ -177,12 +178,21 @@ def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, 
                                          np.abs(mu)-np.abs(mu)+np.abs(mu)[0], damp, const.h, V,
                                          pulse_delay, pulse_widths, pulse_amp, e_phot)
 
+    omega -= Eg / const.h + exce / const.h
+    mu = np.abs(mu)-np.abs(mu)+np.abs(mu)[0]
+
+    # P, pp, ne_k, nh_k = osc.oscillators(t, l_t, k, l_k, omega, ne, nh, mu, damp, V,
+    #                                    pulse_delay, pulse_widths, pulse_amp, e_phot)
+
     E_ft = E_field(t)
-    PSr = fft_f2py_loop.loop(E_ft, l_t, l_f, stt, t, fff,
-                             P, const.eps0, eps, Eg, const.h,
-                             const.c, n_reff)
+    PSr, PSi = fft_f2py_loop.loop(E_ft, l_t, l_f, stt, t, fff,
+                                  P, const.eps0, eps, Eg, const.h,
+                                  const.c, n_reff)
 
     # ---------------------- Visualization ----------------------
+
+    num_points = 300
+    step = l_t // num_points
 
     if debug:
         from bokeh.io import output_file, show
@@ -232,10 +242,6 @@ def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, 
         # ax5.set_ylabel('Absorption (a.u.)')
         # # plt.pause(5)
         # # plt.draw()
-
-        num_points = 300
-
-        step = l_t // num_points
 
         from bokeh.plotting import figure
         from bokeh.layouts import layout
@@ -289,11 +295,11 @@ def polarization_app(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, damp, E_field, 
         with open('data.txt', 'w') as outfile:
             json.dump(doc_json, outfile)
 
-    return PSr / (fff + Eg / const.h),\
+    return PSi / (fff + Eg / const.h),\
            (t / 1e-12, \
            fff * const.h / const.e / 0.0042, \
            np.max(k) / 1e9, \
-           PSr / (fff + Eg / const.h) / np.max(PSr) * 1e16, \
+           PSi / (fff + Eg / const.h) / np.max(PSr) * 1e16, \
            np.real(E_ft) / np.max(np.abs(E_ft)), \
            np.imag(E_ft) / np.max(np.abs(E_ft)), \
            np.real(P) / np.max(np.abs(P)), \

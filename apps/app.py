@@ -25,10 +25,15 @@ from sbe.aux_functions import yaml_parser
 from scripts.absorption_gaas import absorption
 from sbe.semiconductors import GaAs, BandStructure3D, SemicondYAML
 
+import eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
+socketio.init_app(app, cors_allowed_origins="*")
+
+
 
 global fig
 
@@ -175,6 +180,5 @@ if __name__ == "__main__":
     fig = run_engine()
 
     import webbrowser
-
     webbrowser.open("http://127.0.0.1:5000/")
-    app.run(debug=True, use_reloader=False)
+    socketio.run(app)

@@ -4,6 +4,7 @@ The module contains a set of auxiliary functions facilitating the tight-binding 
 from __future__ import print_function
 from __future__ import absolute_import
 import yaml
+import importlib
 
 
 def yaml_parser(input_data):
@@ -28,3 +29,14 @@ def yaml_parser(input_data):
             print(exc)
 
     return output
+
+
+def import_check(module_name='sys'):
+    def check(func):
+        try:
+            module = importlib.import_module(module_name)
+            # exec("import "+module_name)
+            return func
+        except ModuleNotFoundError:
+            pass
+    return check

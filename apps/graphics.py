@@ -4,6 +4,9 @@ from bokeh.layouts import layout
 from bokeh.palettes import PiYG, Magma, Spectral
 
 
+plot.output_backend = "svg"
+
+
 def make_fig(t, fff, max_k, absorb, real_sig, imag_sig, real_pol, imag_pol, pp, ne_k, nh_k):
 
     ax6 = figure(x_axis_label='Time (ps)', y_axis_label='Pump signal (a.u.)',

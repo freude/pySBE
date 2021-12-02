@@ -4,7 +4,7 @@ from constants import h
 from int_matrix import int_matrix
 from polarization_vec import polarization
 from semiconductors import GaAs
-from semiconductors import BandStructure
+from semiconductors import BandStructure3D
 
 
 gaas = GaAs()
@@ -17,7 +17,7 @@ l_f = 500  # length of frequency array
 wave_vector = np.linspace(0, 0.5e9, l_k)
 freq_array = np.linspace(-0.05 * gaas.Eg, 0.05 * gaas.Eg, l_f) / h
 
-bs = BandStructure(material=gaas)
+bs = BandStructure3D(material=gaas)
 
 Tempr = 4
 conc = 8.85e14

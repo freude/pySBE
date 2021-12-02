@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import sbe.constants as const
 from sbe.int_matrix import exchange
 import sbe.P_loop as P_f2py_loop
+import sbe.oscillators as osc
 
 
 def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widths, pulse_delay, pulse_amp, e_phot, debug=True):
@@ -46,7 +47,15 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, E_field, pulse_widt
 
     # Call the Fortran routine to caluculate the required arrays.
 
-    P_f2py_loop.loop(dim, l_t, l_k, t, k, stt, stk,
+    # P_f2py_loop.loop(dim, l_t, l_k, t, k, stt, stk,
+    #                  omega, Eg, exce, ne, 1.0 - nh,
+    #                  mu, damp, const.h, V,
+    #                  pulse_delay, pulse_widths, pulse_amp)
+
+    pp, ne_k, nh_k = osc.oscilators(t, l_t, k, l_k, omega, ne, nh, mu, damp, V,
+                                    pulse_delay, pulse_widths, pulse_amp, e_phot)
+
+        (dim, l_t, l_k, t, k, stt, stk,
                      omega, Eg, exce, ne, 1.0 - nh,
                      mu, damp, const.h, V,
                      pulse_delay, pulse_widths, pulse_amp)
