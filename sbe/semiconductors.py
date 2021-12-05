@@ -21,6 +21,80 @@ def fd(energy, ef, tempr):
     return 1.0 / (1.0 + np.exp((energy - ef) / (kb * tempr)))
 
 
+class SemicondYAML(object):
+    """
+    The class is a data structure for the material parameters of a semiconductor
+
+    Parameters are taken from
+    [I. Vurgaftman, J. R. Meyer, and L. R. Ram-Mohan, J. Appl. Phys., 89 (11), 2001]
+    """
+
+    def __init__(self, **kwargs):
+
+        self.dim = 3
+
+        # --------------- band structure parameters ---------------
+
+        tempr = kwargs.get('tempr', 0)
+        self.tempr_dep = kwargs.get('tempr_dep', 'varshni')
+
+        self.Eg = kwargs.get('Eg', 1.519)
+        self.Eg *= const.e
+
+        self.Eso = kwargs.get('Eso', -0.341)
+        self.Eso *= const.e
+
+        self.gamma1 = kwargs.get('gamma1', 6.98)
+        self.gamma2 = kwargs.get('gamma2', 2.06)
+        self.gamma3 = kwargs.get('gamma3', 2.93)
+
+        self.gamma = 0.5 * (self.gamma2 + self.gamma2)
+
+        self.me = kwargs.get('me', 0.0665)
+        self.me *= const.m0                                   # electrons effective mass
+        self.mhh = const.m0 / (self.gamma1 - 2 * self.gamma)  # holes effective mass
+        self.mlh = const.m0 / (self.gamma1 + 2 * self.gamma)  # holes effective mass
+        self.mso = kwargs.get('mso', 0.172)
+        self.mso *= self.mso                                 # holes effective mass
+        self.mh = (self.mhh, self.mlh, self.mso)
+
+        # ----------------- dielectric screening ------------------
+
+        self.eps = kwargs.get('eps', 12.93)                   # permitivity
+        self.n_reff = kwargs.get('n_reff', 3.16)              # refraction index
+
+        # ------------------- scaling constants -------------------
+
+        self.mr = self.me / (self.mhh + self.me) * self.mhh
+        self.a_0 = const.h / const.e * const.eps0 * self.eps * const.h / const.e / self.mr * 4 * const.pi
+        self.E_0 = (const.e / const.eps0 / self.eps) * (const.e / (2 * self.a_0)) / const.e_Ry
+
+        # --------------------- Varshni formula -------------------
+
+        # Varshni perameters
+        self.alpha = kwargs.get('alpha', 0.605)               # meV/K
+        self.betha = kwargs.get('betha', 204)                 # K
+
+        if self.tempr_dep == 'varshni':
+            self.Eg = self.Eg - const.e * 0.001 * self.alpha * tempr * tempr / (tempr + self.betha)
+
+        # ---------------  O’Donnell-Chen formula -----------------
+        # ------------- Appl. Phys. Lett. 58 (25) (1991) ----------
+
+        # O’Donnell-Chen formula
+        self.coupling = 3.0  # meV/K
+        self.phonon_energy = 26.7  # meV
+
+        if self.tempr_dep == 'odonnell':
+            self.Eg = self.Eg - const.e * 0.001 * self.phonon_energy * self.coupling * \
+                      (1.0 / np.tanh(self.phonon_energy * const.e * 0.001 / (2 * const.kb * tempr)) - 1.0)
+
+        # ------------ energy of momentum matrix element -----------
+        # ----------- between conduction and valence bands ---------
+
+        self.e_P = 28.8  # eV
+
+
 class GaAs(object):
     """
     The class is a data structure for the material parameters of a semiconductor
@@ -239,13 +313,13 @@ class BandStructure3D(BandStructure, object):
         plt.show()
 
 
-class BandStructureQW(BandStructure3D, object):
+class BandStructure2D(BandStructure3D, object):
     """
     Parabolic band approximation
     """
 
     def __init__(self, **kwargs):
-        super(BandStructureQW, self).__init__(**kwargs)
+        super(BandStructure2D, self).__init__(**kwargs)
         self.dim = 2
 
 
@@ -286,27 +360,35 @@ def _dos_single_subband(energy, meff, dim=3, units='eV'):
     return dos
 
 
+def get_list(obj):
+
+    if isinstance(obj, list):
+        return obj
+    elif isinstance(obj, str):
+        if os.path.getsize(obj) > 0:
+            with open(obj, 'rb') as file:
+                ans = pickle.load(obj)
+            return ans
+    else:
+        raise ValueError('Wrong band structure data')
+
+
 class BandStructure(object):
     """
-    Parabolic band approximation
+    Object containing the information on the band structure
     """
 
-    def __init__(self, mat, **kwargs):
+    def __init__(self, mat=None, **kwargs):
 
         self.mat = mat
         self.dim = kwargs.get('dim', 1)
         val_file = kwargs.get('val_band', None)
         cond_file = kwargs.get('cond_band', None)
         dipoles_file = kwargs.get('dipoles', None)
-        if os.path.getsize(val_file) > 0:
-            with open(val_file, 'rb') as file:
-                self.val_bands = pickle.load(file)
-        if os.path.getsize(cond_file) > 0:
-            with open(cond_file, 'rb') as file:
-                self.cond_bands = pickle.load(file)
-        if os.path.getsize(dipoles_file) > 0:
-            with open(dipoles_file, 'rb') as file:
-                self.dipoles = pickle.load(file)
+
+        self.val_bands = get_list(val_file)
+        self.cond_bands = get_list(cond_file)
+        self.dipoles = get_list(dipoles_file)
 
         self.n_sb_e = len(self.cond_bands)
         self.n_sb_h = len(self.val_bands)
@@ -335,7 +417,7 @@ class BandStructure(object):
         if j2 >= self.n_sb_e:
             raise ValueError("Band index exceeds maximal value")
 
-        return (self.dipoles[j1][j2](k)) * 1e-31 + 0*np.ones(k.shape) * 1e-29
+        return (self.dipoles[j1][j2](k)) * 1e-31
 
     def get_optical_transition_data(self, kk, j1, j2):
         return kk, self._val_band(j1, kk), self._cond_band(j2, kk), self._dipole(j1, j2, kk)
@@ -465,4 +547,4 @@ def main1():
 
 
 if __name__ == '__main__':
-    main()
+    main1()

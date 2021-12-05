@@ -1,4 +1,4 @@
-Subroutine loop(E_ft, l_t, l_f, stt, t, fff, P, eps_0, eps, Eg, h, c, n_reff, PSr)
+Subroutine loop(E_ft, l_t, l_f, stt, t, fff, P, eps_0, eps, Eg, h, c, n_reff, PSr, PSi)
   ! Compile this as f2py3 -c fft_loop.f90 -m fft_loop
 
  
@@ -33,6 +33,7 @@ Subroutine loop(E_ft, l_t, l_f, stt, t, fff, P, eps_0, eps, Eg, h, c, n_reff, PS
     !! Integration temporary quantities
     Complex(DP) :: ES(l_f), PS(l_f)
     Real(DP), Intent(out) :: PSr(l_f)
+    Real(DP), Intent(out) :: PSi(l_f)
     Real(DP) :: pi = 3.14159
 
     !! ========== Local Variables ==========
@@ -48,14 +49,14 @@ Subroutine loop(E_ft, l_t, l_f, stt, t, fff, P, eps_0, eps, Eg, h, c, n_reff, PS
     !! Initialization
     ES = 0.0
     PS = 0.0
-    PSr = 0.0 
     
     Do j = 1, l_f
        Do j1 = 1, l_t
           ES(j) = ES(j) + E_ft(j1) * Exp(Cmplx(0.0,1.0_DP) * fff(j) * t(j1)) * stt
           PS(j) = PS(j) + P(j1) * Exp(Cmplx(0.0,1.0_DP) * fff(j) * t(j1)) * stt / (4.0 * pi * eps_0 * eps)
        End Do
-       PSr(j) = imag(PS(j) / ES(j))
+       PSr(j) = real(PS(j) / ES(j))
+       PSi(j) = imag(PS(j) / ES(j))
 !      PSr(j) = 4 * pi * (fff(j) + Eg / h) * imag(PS(j) / ES(j)) / (c * n_reff)
 !        PSr(j) = 4 * pi * (fff(j) + Eg / h) * abs(PS(j)) / (c * n_reff)
     End Do

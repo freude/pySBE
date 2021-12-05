@@ -1,0 +1,48 @@
+.. pySBE documentation master file, created by
+   sphinx-quickstart on Sun May 17 21:30:30 2020.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to pySBE's documentation!
+=================================
+
+==========================================
+Semiconductor Bloch Equations: (SBE)
+==========================================
+
+       
+.. math::
+
+    \begin{align*}
+    \frac{\mathrm{d} p_{\boldsymbol{k}}}{\mathrm{d} t}
+   &=-\mathrm{i} \omega_{\boldsymbol{k}} p_{\boldsymbol{k}}-\mathrm{i}
+   \Omega_{\boldsymbol{k}}(z, t)\left(n_{\mathrm{e}
+       k}+n_{\mathrm{hk}}-1\right)+\left.\frac{\partial
+       p_{\boldsymbol{k}}}{\partial t}\right|_{\mathrm{scatt}} \\
+    \frac{\mathrm{d} n_{\mathrm{e} k}}{\mathrm{d} t}
+    &=\mathrm{i}\left[\Omega_{\boldsymbol{k}}(z, t)
+     p_{k}^{*}-\Omega_{\boldsymbol{k}}^{*}(z, t)
+     p_{\boldsymbol{k}}\right]+\left.\frac{\partial n_{e k}}{\partial
+       t}\right|_{\mathrm{scatt}} \\
+     \frac{\mathrm{d}
+     n_{\mathrm{hk}}}{\mathrm{d} t}
+   &=\mathrm{i}\left[\Omega_{\boldsymbol{k}}(z, t)
+     p_{k}^{*}-\Omega_{\boldsymbol{k}}^{*}(z, t)
+     p_{k}\right]+\left.\frac{\partial n_{\mathrm{hk}}}{\partial
+       t}\right|_{\mathrm{scatt}}
+     \end{align*}
+
+Github repository <https://github.com/freude/pySBE>_   
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

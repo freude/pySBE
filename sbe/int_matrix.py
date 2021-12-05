@@ -13,7 +13,7 @@ def int_matrix_anisotr(k, eps1, eps2, dist, k_lim1, k_lim2, R=0.4e-9):
     """
     1D Coulomb potential in reciprocal space
 
-    :param k:
+    :param k: Wavevector
     :param eps:
     :return:
     """

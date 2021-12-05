@@ -1,0 +1,73 @@
+<html>
+<head>
+    {{ js_resources|indent(4)|safe }}
+    {{ css_resources|indent(4)|safe }}
+    {{ plot_script|indent(4)|safe }}
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/index.css') }}">
+    <h1>pySBE</h1>
+    <h2>The case of two parabolic bands</h2>
+</head>
+
+<body>
+
+<button id="long-running-operation">Process data</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+<script type="text/javascript" charset="utf-8">
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+    let button = document.getElementById('long-running-operation');
+
+    button.addEventListener('click', () => {
+      socket.emit('long-running-event', {data: 'process data'});
+    });
+
+    socket.on('processing-finished', function (data) {
+      alert(JSON.parse(data).data)
+    });
+
+</script>
+<br/>
+<br/>
+
+<div class="row">
+    <div class="column.left">
+        <label class="txt"> Status:</label> {{status}}
+        <br/>
+        <br/>
+        <form methods=['GET',
+        'POST'] action="/save">
+        {{ form.csrf_token }}
+        {{ form.config.label }} <br/>
+        {{ form.config() }} <br/>
+        <br/>
+        {{ form.mat_param.label }} <br/>
+        {{ form.mat_param() }} <br/>
+        <br/>
+        <input type=submit value="Update"/>
+        </form>
+
+    </div>
+
+    <div class="column.right">
+        <input type="checkbox" name="Hold on" value="{{form.checkbox}}">
+        <label class="txt"> Hold on </label>
+        <br/>
+        <br/>
+        {{ plot_div|safe }}
+
+<!--        <img src="/matplot-as-image-{{num_x_points}}.png"-->
+<!--             alt="random points as png"-->
+<!--             height="500"-->
+<!--        >-->
+
+<!--        <h3>Plot as a SVG</h3>-->
+<!--        <img src="/matplot-as-image-{{num_x_points}}.svg"-->
+<!--             alt="random points as svg"-->
+<!--             height="200"-->
+<!--        >-->
+    </div>
+</div>
+
+</body>
+
+</html>

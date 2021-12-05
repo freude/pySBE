@@ -1,0 +1,137 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>apps.graphics &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apps.graphics</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">bokeh.plotting</span> <span class="k">import</span> <span class="n">figure</span>
+<span class="kn">from</span> <span class="nn">bokeh.layouts</span> <span class="k">import</span> <span class="n">layout</span>
+<span class="kn">from</span> <span class="nn">bokeh.palettes</span> <span class="k">import</span> <span class="n">PiYG</span><span class="p">,</span> <span class="n">Magma</span><span class="p">,</span> <span class="n">Spectral</span>
+
+
+<div class="viewcode-block" id="make_fig"><a class="viewcode-back" href="../../apps.html#apps.graphics.make_fig">[docs]</a><span class="k">def</span> <span class="nf">make_fig</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">fff</span><span class="p">,</span> <span class="n">max_k</span><span class="p">,</span> <span class="n">absorb</span><span class="p">,</span> <span class="n">real_sig</span><span class="p">,</span> <span class="n">imag_sig</span><span class="p">,</span> <span class="n">real_pol</span><span class="p">,</span> <span class="n">imag_pol</span><span class="p">,</span> <span class="n">pp</span><span class="p">,</span> <span class="n">ne_k</span><span class="p">,</span> <span class="n">nh_k</span><span class="p">):</span>
+
+    <span class="n">ax6</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">x_axis_label</span><span class="o">=</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">,</span> <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Pump signal (a.u.)&#39;</span><span class="p">,</span>
+                 <span class="n">plot_width</span><span class="o">=</span><span class="mi">370</span><span class="p">,</span> <span class="n">plot_height</span><span class="o">=</span><span class="mi">190</span><span class="p">)</span>
+    <span class="n">ax6</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">real_sig</span><span class="p">)</span>              <span class="c1"># t / 1e-12, np.real(E_ft) / np.max(np.abs(E_ft))</span>
+    <span class="n">ax6</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">imag_sig</span><span class="p">)</span>              <span class="c1"># t / 1e-12, np.imag(E_ft) / np.max(np.abs(E_ft))</span>
+    <span class="n">ax6</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">ax4</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">x_axis_label</span><span class="o">=</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">,</span> <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Polarization (a.u.)&#39;</span><span class="p">,</span>
+                 <span class="n">plot_width</span><span class="o">=</span><span class="mi">370</span><span class="p">,</span> <span class="n">plot_height</span><span class="o">=</span><span class="mi">190</span><span class="p">)</span>
+    <span class="n">ax4</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">real_pol</span><span class="p">)</span>  <span class="c1"># t / 1e-12, np.real(P) / np.max(np.abs(P))</span>
+    <span class="n">ax4</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">imag_pol</span><span class="p">)</span>   <span class="c1"># t / 1e-12, np.imag(P) / np.max(np.abs(P))</span>
+    <span class="n">ax4</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">ax3</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Microscopic </span><span class="se">\n</span><span class="s1"> polarization&#39;</span><span class="p">,</span>
+                 <span class="n">x_axis_label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;Wave vector (nm</span><span class="se">\N{SUPERSCRIPT MINUS}\N{SUPERSCRIPT ONE}</span><span class="s1">)&#39;</span><span class="p">,</span>
+                 <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">,</span>
+                 <span class="n">sizing_mode</span><span class="o">=</span><span class="s2">&quot;stretch_both&quot;</span><span class="p">)</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="p">[</span><span class="n">pp</span><span class="p">],</span> <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dw</span><span class="o">=</span><span class="n">max_k</span><span class="p">,</span> <span class="n">dh</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">palette</span><span class="o">=</span><span class="n">PiYG</span><span class="p">[</span><span class="mi">10</span><span class="p">])</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">ax2</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Electron </span><span class="se">\n</span><span class="s1"> distribution&#39;</span><span class="p">,</span>
+                 <span class="n">x_axis_label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;Wave vector (nm</span><span class="se">\N{SUPERSCRIPT MINUS}\N{SUPERSCRIPT ONE}</span><span class="s1">)&#39;</span><span class="p">,</span>
+                 <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">,</span>
+                 <span class="n">sizing_mode</span><span class="o">=</span><span class="s2">&quot;stretch_both&quot;</span><span class="p">)</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="p">[</span><span class="n">ne_k</span><span class="p">],</span> <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dw</span><span class="o">=</span><span class="n">max_k</span><span class="p">,</span> <span class="n">dh</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">palette</span><span class="o">=</span><span class="n">Spectral</span><span class="p">[</span><span class="mi">10</span><span class="p">])</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">ax1</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;Hole </span><span class="se">\n</span><span class="s1"> distribution&#39;</span><span class="p">,</span>
+                 <span class="n">x_axis_label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;Wave vector (nm</span><span class="se">\N{SUPERSCRIPT MINUS}\N{SUPERSCRIPT ONE}</span><span class="s1">)&#39;</span><span class="p">,</span>
+                 <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Time (ps)&#39;</span><span class="p">,</span>
+                 <span class="n">sizing_mode</span><span class="o">=</span><span class="s2">&quot;stretch_both&quot;</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">image</span><span class="o">=</span><span class="p">[</span><span class="n">nh_k</span><span class="p">],</span> <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dw</span><span class="o">=</span><span class="n">max_k</span><span class="p">,</span> <span class="n">dh</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">palette</span><span class="o">=</span><span class="n">Spectral</span><span class="p">[</span><span class="mi">10</span><span class="p">])</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">ax5</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">x_axis_label</span><span class="o">=</span><span class="s1">&#39;Scaled energy (E-Eg)/Eb (a.u.)&#39;</span><span class="p">,</span> <span class="n">y_axis_label</span><span class="o">=</span><span class="s1">&#39;Absorption (a.u.)&#39;</span><span class="p">,</span>
+                 <span class="n">plot_width</span><span class="o">=</span><span class="mi">370</span><span class="p">,</span> <span class="n">plot_height</span><span class="o">=</span><span class="mi">190</span><span class="p">)</span>
+    <span class="n">ax5</span><span class="o">.</span><span class="n">line</span><span class="p">(</span><span class="n">fff</span><span class="p">,</span> <span class="n">absorb</span><span class="p">)</span>   <span class="c1"># fff * const.h / const.e / 0.0042, PSr / np.max(PSr)</span>
+    <span class="n">ax5</span><span class="o">.</span><span class="n">toolbar</span><span class="o">.</span><span class="n">logo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">layout</span><span class="p">([[</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">,</span> <span class="n">ax3</span><span class="p">,</span> <span class="p">[</span><span class="n">ax6</span><span class="p">,</span> <span class="n">ax4</span><span class="p">,</span> <span class="n">ax5</span><span class="p">]]],</span> <span class="n">width</span><span class="o">=</span><span class="mi">1150</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">770</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,304 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>scripts.absorption_gaas &#8212; pySBE  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for scripts.absorption_gaas</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">sbe.constants</span> <span class="k">import</span> <span class="n">h</span><span class="p">,</span> <span class="n">e</span>
+<span class="kn">from</span> <span class="nn">sbe.int_matrix</span> <span class="k">import</span> <span class="n">int_matrix</span>
+<span class="kn">from</span> <span class="nn">sbe.Pol_FFT_f2py</span> <span class="k">import</span> <span class="n">polarization_app</span>
+<span class="kn">from</span> <span class="nn">sbe.semiconductors</span> <span class="k">import</span> <span class="n">BandStructureQW</span><span class="p">,</span> <span class="n">BandStructure3D</span><span class="p">,</span> <span class="n">GaAs</span>
+<span class="kn">from</span> <span class="nn">sbe.aux_functions</span> <span class="k">import</span> <span class="n">yaml_parser</span>
+<span class="kn">import</span> <span class="nn">sbe.constants</span> <span class="k">as</span> <span class="nn">const</span>
+
+
+<span class="n">config_file</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;verbosity:  True</span>
+<span class="s2">damp:      0.003    # dephasing factor in eV</span>
+
+<span class="s2"># ---------------- k grids ------------------</span>
+
+<span class="s2">l_k:         300    # length of k array</span>
+<span class="s2">k_max:    1.0e+9    # k-vector cutoff</span>
+
+<span class="s2"># ------------- frequency array -------------</span>
+
+<span class="s2">l_f:         400    # number of points in the frequency array</span>
+<span class="s2">f_min:       0.7    # frequency array limits in units of the band gap</span>
+<span class="s2">f_max:       1.1    # frequency array limits in units of the band gap</span>
+
+<span class="s2"># --------- environment parameters ----------</span>
+
+<span class="s2">tempr:         1    # temperature in K </span>
+<span class="s2">conc:    5.0e+14    # carrier concentration</span>
+
+<span class="s2"># --------- external field parameters -------</span>
+
+<span class="s2">pulse_width:  1.0   # pulse width in femtoseconds</span>
+<span class="s2">pulse_delay:  100   # pulse delay in the units of the pulse width</span>
+<span class="s2">pulse_amp: 5.e+1   # amplitude</span>
+<span class="s2">e_phot:         0   # photon energy in the units of the fundamental band gap</span>
+
+<span class="s2"># ----------- data management ---------------</span>
+
+<span class="s2">scratch:   False</span>
+<span class="s2">save:      False</span>
+<span class="s2">file_label:  &quot;1&quot;    # id added to the file name </span>
+<span class="s2">temp_dir:    &quot;~&quot;    # storage for graphic information</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">mat_file</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# -------- Band structure parameters ---------</span>
+
+<span class="s2">Eg:      1.519      # band gap</span>
+<span class="s2">Eso:    -0.341      # spin-orbit splitting</span>
+
+<span class="s2">gamma1:   6.98      # Luttinger parameters</span>
+<span class="s2">gamma2:   2.06</span>
+<span class="s2">gamma3:   2.93</span>
+<span class="s2">        </span>
+<span class="s2">me:     0.0665      # electron effective mass</span>
+<span class="s2">mso:     0.172      # spin-orbit effective mass</span>
+
+<span class="s2"># ----------- Dielectric screening -----------</span>
+
+<span class="s2">eps:     12.93      # dielectric constant</span>
+<span class="s2">n_reff:   3.16      # refractive index</span>
+
+<span class="s2"># ------------ Varshni parameters ------------</span>
+
+<span class="s2">alpha:   0.605      # meV / K    </span>
+<span class="s2">betha:     204      # meV</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="absorption"><a class="viewcode-back" href="../../scripts.html#scripts.absorption_gaas.absorption">[docs]</a><span class="k">def</span> <span class="nf">absorption</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes absorption spectra</span>
+
+<span class="sd">    :param bs:             band structure</span>
+<span class="sd">    :param scratch:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dim</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">dim</span>
+
+    <span class="c1"># -------------------- arrays definition ---------------------</span>
+    <span class="n">verbosity</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbosity&#39;</span><span class="p">)</span>
+    <span class="n">damp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;damp&#39;</span><span class="p">)</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>   <span class="c1"># damping</span>
+    <span class="n">l_k</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;l_k&#39;</span><span class="p">)</span>  <span class="c1"># length of k array</span>
+    <span class="n">l_f</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;l_f&#39;</span><span class="p">)</span>  <span class="c1"># length of frequency array</span>
+    <span class="n">Tempr</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tempr&#39;</span><span class="p">)</span>
+    <span class="n">conc</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;conc&#39;</span><span class="p">)</span>
+    <span class="n">k_max</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;k_max&#39;</span><span class="p">)</span>
+    <span class="n">f_min</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;f_min&#39;</span><span class="p">)</span>
+    <span class="n">f_max</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;f_max&#39;</span><span class="p">)</span>
+    <span class="n">pulse_width</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pulse_width&#39;</span><span class="p">)</span>
+    <span class="n">pulse_delay</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pulse_delay&#39;</span><span class="p">)</span>
+    <span class="n">pulse_amp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pulse_amp&#39;</span><span class="p">)</span>
+    <span class="n">e_phot</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;e_phot&#39;</span><span class="p">)</span>
+    <span class="n">pulse_widths</span> <span class="o">=</span> <span class="mf">1e-15</span> <span class="o">*</span> <span class="n">pulse_width</span>
+    <span class="n">pulse_delay</span> <span class="o">=</span> <span class="n">pulse_delay</span> <span class="o">*</span> <span class="n">pulse_widths</span>
+    <span class="n">e_phot</span> <span class="o">=</span> <span class="n">e_phot</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span>
+    <span class="n">scratch</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scratch&#39;</span><span class="p">)</span>
+    <span class="n">save</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;save&#39;</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------</span>
+
+    <span class="n">wave_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">k_max</span><span class="p">,</span> <span class="n">l_k</span><span class="p">)</span>
+    <span class="n">freq_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">f_min</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span><span class="p">,</span> <span class="n">f_max</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span><span class="p">,</span> <span class="n">l_f</span><span class="p">)</span> <span class="o">-</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span>
+    <span class="n">freq_array</span> <span class="o">=</span> <span class="n">freq_array</span> <span class="o">/</span> <span class="n">h</span>
+
+    <span class="c1"># ------------------------------------------------------------</span>
+
+    <span class="c1"># Ef_h, Ef_e = bs.get_Fermi_levels(Tempr, conc)</span>
+    <span class="n">Ef_h</span><span class="p">,</span> <span class="n">Ef_e</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span><span class="p">,</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">Eg</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Fermi levels are: Ef_h = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">Ef_h</span> <span class="o">/</span> <span class="n">e</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; eV&#39;</span> <span class="o">+</span> <span class="s1">&#39; and Ef_e = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">Ef_e</span> <span class="o">/</span> <span class="n">e</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; eV&#39;</span><span class="p">)</span>
+
+    <span class="c1"># V = 0.5e-29*int_matrix(wave_vector, bs.mat.eps, dim=dim)</span>
+    <span class="n">V</span> <span class="o">=</span> <span class="n">int_matrix</span><span class="p">(</span><span class="n">wave_vector</span><span class="p">,</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">bs</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+    <span class="c1"># V = np.zeros((l_k, l_k))</span>
+
+    <span class="k">def</span> <span class="nf">e_field</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+        <span class="c1"># pulse_widths = 0.01e-14</span>
+        <span class="c1"># pulse_delay = 10 * pulse_widths</span>
+        <span class="c1"># # pulse_amp = 1.0e7</span>
+        <span class="c1"># pulse_amp = 1.0e-3</span>
+        <span class="c1"># e_phot = 0.1 * bs.mat.Eg * 0</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">pulse_amp</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">t</span> <span class="o">-</span> <span class="n">pulse_delay</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">pulse_widths</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="p">(</span><span class="n">e_phot</span> <span class="o">/</span> <span class="n">h</span><span class="p">)</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">subbandss</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ps</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loop over pairs of subbands:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">j1</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">j2</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;        cb = </span><span class="si">{}</span><span class="s2">, vb = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j1</span><span class="p">,</span> <span class="n">j2</span><span class="p">))</span>
+            <span class="n">subbands</span> <span class="o">=</span> <span class="n">bs</span><span class="o">.</span><span class="n">get_optical_transition_data</span><span class="p">(</span><span class="n">wave_vector</span><span class="p">,</span> <span class="n">j2</span><span class="p">,</span> <span class="n">j1</span><span class="p">)</span>
+            <span class="c1"># plt.plot(subbands[3])</span>
+            <span class="n">subbandss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subbands</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">subbands</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">scratch</span><span class="p">:</span>
+                <span class="n">ps1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;ps&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">j1</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">j2</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_17_18.npy&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ps1</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">polarization_app</span><span class="p">(</span><span class="n">freq_array</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">bs</span><span class="o">.</span><span class="n">mat</span><span class="p">,</span> <span class="n">subbands</span><span class="p">,</span>
+                                   <span class="n">Ef_h</span><span class="p">,</span> <span class="n">Ef_e</span><span class="p">,</span>
+                                   <span class="n">Tempr</span><span class="p">,</span>
+                                   <span class="n">V</span><span class="p">,</span>
+                                   <span class="n">damp</span><span class="p">,</span>
+                                   <span class="n">e_field</span><span class="p">,</span> <span class="n">pulse_widths</span><span class="p">,</span> <span class="n">pulse_delay</span><span class="p">,</span> <span class="n">pulse_amp</span><span class="p">,</span> <span class="n">e_phot</span><span class="p">,</span>
+                                   <span class="n">debug</span><span class="o">=</span><span class="n">verbosity</span><span class="p">)</span>
+
+                <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;ps&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">j1</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">j2</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;_17_18.npy&#39;</span><span class="p">,</span> <span class="n">ps1</span><span class="p">)</span>
+
+            <span class="n">ps1</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">ps1</span>
+            <span class="n">ps1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">ps1</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+
+                <span class="n">pad_width</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">subbands</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">subbands</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">Eg</span><span class="p">)</span> <span class="o">/</span> <span class="p">((</span><span class="n">freq_array</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">freq_array</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="n">h</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">pad_width</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">ps1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">ps1</span><span class="p">,</span> <span class="n">pad_width</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+                    <span class="n">ps1</span> <span class="o">=</span> <span class="n">ps1</span><span class="p">[:</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">freq_array</span><span class="p">)]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">Eg</span> <span class="o">=</span> <span class="n">subbands</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">subbands</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">ps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ps1</span><span class="p">)</span>
+
+    <span class="n">ps_tot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ps</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># plt.figure()</span>
+    <span class="c1"># for item in ps:</span>
+    <span class="c1">#     plt.plot((freq_array * h + Eg) / e, item / 1e5)</span>
+    <span class="c1"># plt.plot((freq_array * h + Eg) / e, ps_tot / 1e5, &#39;k&#39;)</span>
+    <span class="c1"># plt.fill_between((freq_array * h + Eg) / e, ps_tot / 1e5, facecolor=&#39;gray&#39;, alpha=0.5)</span>
+    <span class="c1"># plt.xlabel(&#39;Energy (eV)&#39;)</span>
+    <span class="c1"># plt.ylabel(r&#39;Absorption ($10^5$ m$^{-1}$)&#39;)</span>
+    <span class="c1"># plt.gca().legend((&#39;heavy holes&#39;, &#39;light holes&#39;, &#39;total&#39;))</span>
+    <span class="c1"># plt.show()</span>
+
+    <span class="n">energy</span> <span class="o">=</span> <span class="p">(</span><span class="n">freq_array</span> <span class="o">*</span> <span class="n">h</span> <span class="o">+</span> <span class="n">Eg</span><span class="p">)</span> <span class="o">/</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="n">save</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;abs.npy&#39;</span><span class="p">,</span> <span class="n">ps_tot</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;energy.npy&#39;</span><span class="p">,</span> <span class="n">energy</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">energy</span><span class="p">,</span> <span class="n">ps_tot</span><span class="p">,</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="main2D"><a class="viewcode-back" href="../../scripts.html#scripts.absorption_gaas.main2D">[docs]</a><span class="k">def</span> <span class="nf">main2D</span><span class="p">():</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">yaml_parser</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+    <span class="n">gaas</span> <span class="o">=</span> <span class="n">GaAs</span><span class="p">()</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructureQW</span><span class="p">(</span><span class="n">material</span><span class="o">=</span><span class="n">gaas</span><span class="p">)</span>
+    <span class="n">energy</span><span class="p">,</span> <span class="n">ans</span> <span class="o">=</span> <span class="n">absorption</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">energy</span><span class="p">,</span> <span class="n">ans</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="main3D"><a class="viewcode-back" href="../../scripts.html#scripts.absorption_gaas.main3D">[docs]</a><span class="k">def</span> <span class="nf">main3D</span><span class="p">():</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">yaml_parser</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+    <span class="n">gaas</span> <span class="o">=</span> <span class="n">GaAs</span><span class="p">()</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="n">BandStructure3D</span><span class="p">(</span><span class="n">material</span><span class="o">=</span><span class="n">gaas</span><span class="p">)</span>
+    <span class="n">energy</span><span class="p">,</span> <span class="n">ans</span><span class="p">,</span> <span class="n">fig</span> <span class="o">=</span> <span class="n">absorption</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="c1"># plt.plot(energy, ans)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="c1"># main2D()</span>
+    <span class="n">main3D</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../pySBE.html">pySBE</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../pySBE.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Mykhailo Klymenko.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
