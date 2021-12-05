@@ -18,7 +18,6 @@ def absorption(bs):
     l_k = np.size(k)  # length of k array
 
     fff = np.linspace(0.0, 1 * const.e / const.h, 100)
-    l_f = np.size(fff)  # length of frequency array
     l_t = 1000  # length of time array
 
     # ---------------------------- time -------------------------------
@@ -133,7 +132,7 @@ def absorption(bs):
     return 1, 1, 1
 
 
-def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
+def make_optical_data(k):
 
     class Graphene(object):
         def __init__(self):
@@ -148,29 +147,31 @@ def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
     a = 2.46e-10
     gamma = np.sqrt(3) / 2 * gamma0 * a
 
-    Eg = 0
-
     def ec(k):
-        return gamma * k # * k * k * k / 1e28
+        return gamma * k  # * k * k * k / 1e28
 
     def ev(k):
-        return -gamma * k # * k * k * k / 1e28
+        return -gamma * k  # * k * k * k / 1e28
 
     def dip(k):
-        return 1e20 / (k+1e-15) + 1e10*0
+        return 1e20 / (k + 1e-15) + 1e10 * 0
 
     bs = BandStructure(mat=graphene, cond_band=[ec], val_band=[ev], dipoles=[[dip]])
-    # bs.plot()
+
     # ----------------------- parse inputs -----------------------
 
-    k = np.linspace(0, 0.3e9, 300)
-
     data = bs.get_optical_transition_data(k, 0, 0)
-
-    k = np.array(data[0])
     Eh = data[1] / const.h
     Ee = data[2] / const.h
     mu = np.array(data[3])
+
+    return Eh, Ee, mu, graphene
+
+
+def absorption_graphene(fff, Tempr, Ef_h, Ef_e, damp, vis=False):
+
+    k = np.linspace(0, 0.3e9, 300)
+    Eh, Ee, mu, graphene = make_optical_data(k)
 
     l_k = np.size(k)  # length of k array
     # length of time array
@@ -204,7 +205,7 @@ def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
     V = np.zeros((l_k, l_k))
 
     dim = graphene.dim
-    damp = 0.003 * const.e
+    damp *= const.e
     pulse_delay = 1e-13
     pulse_widths = 0.01e-13
     pulse_amp = 1e-31
@@ -219,8 +220,7 @@ def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
     l_f = np.size(fff)  # length of frequency array
 
     def e_field(tt):
-        a = np.exp(-((tt - pulse_delay) ** 2) / (2 * pulse_widths ** 2))  # * np.exp(1j * (bs.mat.Eg / const.h) * tt)
-
+        a = pulse_amp * np.exp(-((tt - pulse_delay) ** 2) / (2 * pulse_widths ** 2))  # * np.exp(1j * (bs.mat.Eg / const.h) * tt)
         return np.nan_to_num(a)
 
     E_ft = e_field(t)
@@ -229,13 +229,11 @@ def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
                                   P, const.eps0, eps, Eg, const.h,
                                   const.c, n_reff)
 
-    norm = np.max(PSr)
-    print(np.max(np.abs(PSr+1j*PSi)))
+    # norm = np.max(PSi)
+    # PSr /= norm
+    # PSi /= norm
 
     sus = PSr + 1j*PSi
-
-    PSr /= norm
-    PSi /= norm
 
     # ---------------------- Visualization ----------------------
     if vis:
@@ -264,27 +262,79 @@ def absorption_graphene(fff, Tempr, Ef_h, Ef_e, vis=False):
         plt.show()
 
     cond = -1j * sus * fff
-    norm = np.max(fff)
-    cond *= norm
+    # norm = np.max(fff)
+    # cond *= norm
 
     return cond
 
 
+def absorption_graphene_stationary(fff, Tempr, Ef_h, Ef_e, damp, vis=False):
+
+    k = np.linspace(0, 0.3e9, 300)
+    Eh, Ee, mu, graphene = make_optical_data(k)
+
+    l_k = np.size(k)  # length of k array
+    # length of time array
+    stk = k[4] - k[3]  # step in the k-space grid
+
+    eps = graphene.eps
+    n_reff = graphene.n_reff
+
+    # ------------------------------------------------------------
+
+    omega = Ee - Eh
+
+    ne = 1.0 / (1 + np.exp((Ee * const.h - Ef_e) / const.kb / Tempr))
+    nh = 1.0 / (1 + np.exp(-(Eh * const.h - Ef_h) / const.kb / Tempr))
+    damp *= const.e
+
+    from sbe.stationary import ksi0, vertex
+    V = np.zeros((l_k, l_k))
+
+    # ksi = ksi0(fff*const.h, omega - omega[0], nh, ne, damp)
+    #
+    # plt.contourf(np.abs(ksi))
+    # plt.show()
+    #
+    # plt.plot(np.sum(np.imag(ksi), axis=1))
+    # plt.show()
+
+    M = vertex(fff * const.h, omega - omega[0], nh, ne, damp, mu, V, 0)
+    cond = np.sum(M * np.tile(mu * k, (len(fff), 1)), axis=1) * stk / (2 * np.pi) / (4.0 * np.pi * const.eps0 * eps)
+
+    # norm = np.max(np.imag(cond))
+    # cond /= norm
+    return -1j * cond * fff
+
+
 def main():
 
-    Ef_e = 0.000005 * const.e
-    Ef_h = 0.000005 * const.e
-    Tempr = 300
+    Ef_e = 0.05 * const.e
+    Ef_h = -0.05 * const.e
+    Tempr = 10
+    damp = 0.003
 
     fff = np.linspace(0.0, 0.3 * const.e / const.h, 100)
-    cond = absorption_graphene(fff, Tempr, Ef_h, Ef_e)
+    cond = absorption_graphene_stationary(fff, Tempr, Ef_h, Ef_e, damp, vis=True)
+    cond1 = absorption_graphene(fff, Tempr, Ef_h, Ef_e, damp, vis=True)
 
+    plt.figure(1)
     plt.plot(fff * const.h / const.e, np.real(cond), 'k')
     plt.plot(fff * const.h / const.e, np.imag(cond), 'k--')
+    plt.plot(fff * const.h / const.e, np.real(cond1), 'r')
+    plt.plot(fff * const.h / const.e, np.imag(cond1), 'r--')
     plt.xlabel('Photon energy (eV)')
     plt.ylabel('Conductivity (a.u.)')
     plt.title("Conductivity, $\sigma(\omega)$ @ T=" + str(Tempr) + " K, Ef=" + str(Ef_e/const.e) + " eV")
     plt.legend(['$\Re[\sigma(\omega)]$', '$\Im[\sigma(\omega)]$'])
+
+    # plt.figure(2)
+    # plt.plot(fff * const.h / const.e, np.real(cond1), 'r')
+    # plt.plot(fff * const.h / const.e, np.imag(cond1), 'r--')
+    # plt.xlabel('Photon energy (eV)')
+    # plt.ylabel('Conductivity (a.u.)')
+    # plt.title("Conductivity, $\sigma(\omega)$ @ T=" + str(Tempr) + " K, Ef=" + str(Ef_e/const.e) + " eV")
+    # plt.legend(['$\Re[\sigma(\omega)]$', '$\Im[\sigma(\omega)]$'])
     plt.show()
 
 

@@ -60,7 +60,7 @@ def vertex1(fr, dim, params, bs, Ef_h, Ef_e, Tempr, V, stk):
 
     # ------------------------------------------------------------
 
-    damp = 0.05 * e  # damping
+    damp = 0.01 * e  # damping
     omega = Ee - Eh
 
     # ----------------- Distribution functions -------------------
@@ -123,8 +123,8 @@ def polarization(fff, dim, params, bs, Ef_h, Ef_e, Tempr, V, VV1, VV2):
 
 if __name__ == '__main__':
 
-    l_k = 500
-    wave_vector = np.linspace(0.0, 2.0e9, l_k)
+    l_k = 150
+    wave_vector = np.linspace(0.0, 1.0e9, l_k)
     stk = wave_vector[3] - wave_vector[2]
 
     energy = np.linspace(-0.1, 0.1, l_k) * e
