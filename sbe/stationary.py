@@ -1,3 +1,6 @@
+"""
+Solving SBEs using matrix method in the stationary limit
+"""
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt

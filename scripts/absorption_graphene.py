@@ -1,3 +1,6 @@
+"""
+Optical properties of graphene
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -310,7 +313,7 @@ def absorption_graphene_stationary(fff, Tempr, Ef_h, Ef_e, damp, vis=False):
 def main():
 
     Ef_e = 0.05 * const.e
-    Ef_h = -0.05 * const.e
+    Ef_h = 0.05 * const.e
     Tempr = 10
     damp = 0.003
 
